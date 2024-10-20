@@ -1,0 +1,137 @@
+[
+  {
+    "id_user": 1,
+    "time_arrive": "08:15",
+    "time_leave": "16:30",
+    "percent_arrive": 45,
+    "percent_leave": 80,
+    "battery_size": 64,
+    "charge_max": 11
+  },
+  {
+    "id_user": 2,
+    "time_arrive": "09:00",
+    "time_leave": "15:45",
+    "percent_arrive": 30,
+    "percent_leave": 90,
+    "battery_size": 50,
+    "charge_max": 22
+  },
+  {
+    "id_user": 3,
+    "time_arrive": "08:30",
+    "time_leave": "17:15",
+    "percent_arrive": 50,
+    "percent_leave": 95,
+    "battery_size": 77,
+    "charge_max": 11
+  },
+  {
+    "id_user": 4,
+    "time_arrive": "09:10",
+    "time_leave": "14:50",
+    "percent_arrive": 20,
+    "percent_leave": 60,
+    "battery_size": 58,
+    "charge_max": 7.4
+  },
+  {
+    "id_user": 5,
+    "time_arrive": "08:45",
+    "time_leave": "16:00",
+    "percent_arrive": 90,
+    "percent_leave": 100,
+    "battery_size": 82,
+    "charge_max": 22
+  },
+  {
+    "id_user": 6,
+    "time_arrive": "09:25",
+    "time_leave": "15:30",
+    "percent_arrive": 40,
+    "percent_leave": 80,
+    "battery_size": 40,
+    "charge_max": 11
+  },
+  {
+    "id_user": 7,
+    "time_arrive": "08:50",
+    "time_leave": "18:00",
+    "percent_arrive": 55,
+    "percent_leave": 100,
+    "battery_size": 77,
+    "charge_max": 7.4
+  },
+  {
+    "id_user": 8,
+    "time_arrive": "08:10",
+    "time_leave": "17:45",
+    "percent_arrive": 35,
+    "percent_leave": 80,
+    "battery_size": 64,
+    "charge_max": 11
+  },
+  {
+    "id_user": 9,
+    "time_arrive": "09:35",
+    "time_leave": "15:15",
+    "percent_arrive": 40,
+    "percent_leave": 70,
+    "battery_size": 95,
+    "charge_max": 22
+  },
+  {
+    "id_user": 10,
+    "time_arrive": "09:20",
+    "time_leave": "14:45",
+    "percent_arrive": 65,
+    "percent_leave": 85,
+    "battery_size": 24,
+    "charge_max": 11
+  },
+  {
+    "id_user": 11,
+    "time_arrive": "08:05",
+    "time_leave": "17:10",
+    "percent_arrive": 15,
+    "percent_leave": 70,
+    "battery_size": 58,
+    "charge_max": 7.4
+  },
+  {
+    "id_user": 12,
+    "time_arrive": "09:45",
+    "time_leave": "16:40",
+    "percent_arrive": 50,
+    "percent_leave": 95,
+    "battery_size": 90,
+    "charge_max": 11
+  },
+  {
+    "id_user": 13,
+    "time_arrive": "08:20",
+    "time_leave": "15:55",
+    "percent_arrive": 0,
+    "percent_leave": 50,
+    "battery_size": 40,
+    "charge_max": 22
+  },
+  {
+    "id_user": 14,
+    "time_arrive": "09:05",
+    "time_leave": "16:20",
+    "percent_arrive": 70,
+    "percent_leave": 100,
+    "battery_size": 82,
+    "charge_max": 11
+  },
+  {
+    "id_user": 15,
+    "time_arrive": "08:40",
+    "time_leave": "16:50",
+    "percent_arrive": 40,
+    "percent_leave": 30,
+    "battery_size": 64,
+    "charge_max": 7.4
+  }
+]
