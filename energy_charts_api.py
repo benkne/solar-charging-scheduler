@@ -17,7 +17,8 @@ def convert_unix_to_cest(unix_timestamp: int) -> datetime:
     cest_zone = pytz.timezone('Europe/Berlin')
     dt_cest = dt_utc.astimezone(cest_zone)
     
-    return dt_cest
+    #return dt_cest
+    return dt_cest.replace(tzinfo=None)
 
 def api_request() -> Forecast:
 
