@@ -5,8 +5,6 @@ from forecast_power import Datapoint,Forecast
 
 url = "https://api.energy-charts.info/public_power_forecast?country=at&production_type=solar&forecast_type=current"
 
-# 4196 MW Spitzenwert im Jahr 2024 (juni)
-# 6395 MWp lt Statista 2023 https://de.statista.com/statistik/daten/studie/807265/umfrage/installierte-photovoltaik-leistung-in-oesterreich/
 
 def convert_unix_to_cest(unix_timestamp: int) -> datetime:
     dt_utc = datetime.datetime.utcfromtimestamp(unix_timestamp)
@@ -17,12 +15,18 @@ def convert_unix_to_cest(unix_timestamp: int) -> datetime:
     cest_zone = pytz.timezone('Europe/Berlin')
     dt_cest = dt_utc.astimezone(cest_zone)
     
-    #return dt_cest
     return dt_cest.replace(tzinfo=None)
 
 def api_request() -> Forecast:
 
-    response = requests.get(url)
+    try:
+        response = requests.get(url, verify=True)
+    except requests.exceptions.SSLError:
+        print("SSL verification failed, retrying with verify=False...")
+        response = requests.get(url, verify=False)
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        exit()
 
     if response.status_code == 200:
         data = response.json()
@@ -37,8 +41,6 @@ def api_request() -> Forecast:
         datapoints = [Datapoint(times[i],forecast_values[i]) for i in range(0,len(times))]
         forecast = Forecast(datapoints)
         
-        #print("Timestamp:", [t.strftime('%Y-%m-%d %H:%M:%S %Z%z') for t in times])
-        #print("Forecasted Power (W)", forecast_values)
         return forecast
     else:
         raise Exception(f"Error: {response.status_code}. Failed to fetch data.") 
