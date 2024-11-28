@@ -9,7 +9,7 @@ class Datapoint:
         self.timestamp: datetime.datetime = timestamp
         self.forecast_value: float = forecast_value
     def __str__(self) -> str:
-        return f"{self.timestamp} {self.forecast_value}"
+        return f"{self.timestamp}, {self.forecast_value}"
 
 class Forecast:
     def __init__(self, datapoints: list[Datapoint]):

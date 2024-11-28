@@ -61,6 +61,7 @@ class Vehicle:
                                                         int(entry['time_leave'][:2]),
                                                         int(entry['time_leave'][3:]))
                 
+                id_user=entry['id_user']
                 percent_arrive=entry['percent_arrive']
                 percent_leave=entry['percent_leave']
                 battery_size=entry['battery_size']
@@ -70,11 +71,12 @@ class Vehicle:
                 
                 max_possible_energy = parking_time/60*charge_max
                 if(max_possible_energy<required_energy): # check if the desired SoC can possibly be reached bevore leaving
-                    print(f"Warning: Cannot charge vehicle {int(required_energy)} kWh within {parking_time} minutes.")
+                    percent_leave_old = percent_leave
                     percent_leave = max_possible_energy*100/battery_size+percent_arrive # recalculate SoC_leave so that the vehicle can be charged within parking time
-
+                    print(f"Warning: Vehicle with ID {id_user} cannot be charged {required_energy:.2f} kWh ({int(percent_leave_old)}%) within {int(parking_time)} minutes. At most {max_possible_energy:.2f} kWh ({int(percent_leave)}%) are possible.")
+            
                 vehicle = Vehicle(
-                    id_user=entry['id_user'],
+                    id_user=id_user,
                     time_arrive=time_arrive,
                     time_leave=time_leave,
                     percent_arrive=percent_arrive,

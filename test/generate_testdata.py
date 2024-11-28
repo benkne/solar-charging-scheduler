@@ -13,7 +13,7 @@ class TestdataParameters:
                  socmeanarrival=0.4, 
                  chargepowermax=[11,22,7], 
                  meanparkingtime=8, 
-                 parkingtimeparameter=12,
+                 parkingtimeparameter=40,
                  seed=0):
         self.filename = filename
 
@@ -27,7 +27,7 @@ class TestdataParameters:
 
         self.seed = seed
 
-def generate_testdata(testdata_parameters):
+def generate_testdata(testdata_parameters: TestdataParameters = TestdataParameters()) -> None:
     random.seed(testdata_parameters.seed)
     np.random.seed(testdata_parameters.seed)
 
@@ -37,22 +37,23 @@ def generate_testdata(testdata_parameters):
 
     mean_parking_time = testdata_parameters.meanparkingtime  # Mean arrival time before departure in hours
     soc_mean = testdata_parameters.socmeanarrival # mean SoC on arrival
-    variance = 0.01 # beta distribution variance parameter
+    variance = 0.04 # beta distribution variance parameter
 
     # calculate alpha and beta for the beta distribution
     a = soc_mean * ((soc_mean * (1 - soc_mean)) / variance - 1)
     b = (1 - soc_mean) * ((soc_mean * (1 - soc_mean)) / variance - 1)
+    print(f"SoC state: Beta distribution parameters - alpha: {a}, beta: {b}")
 
     k = testdata_parameters.parkingtimeparameter # Erlang distribution shape parameter (k)
+    print(f"Parking time: Erlang distribution parameters - k: {k}, mean: {mean_parking_time} hours")
 
     bev_data = []
     for i in range(1, testdata_parameters.vehiclecount+1):
         battery_size = int(np.random.choice(socmaxdistribution[0], p=socmaxdistribution[1]))
 
         parking_time = erlang.rvs(k, scale=mean_parking_time / k)
-        print(parking_time)
 
-        departure_time = datetime.strptime("16:30", "%H:%M") + timedelta(minutes=random.randint(-120, 120))
+        departure_time = datetime.strptime("17:00", "%H:%M") + timedelta(minutes=random.randint(-90, 90))
         arrival_time = departure_time - timedelta(hours=parking_time)
 
         time_arrive = arrival_time.strftime("%H:%M")

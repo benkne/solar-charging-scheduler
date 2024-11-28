@@ -8,7 +8,6 @@ class Production:
         forecast = forecast.getDailyForecast(timestamp)
         self.production: list[float] = []
         time = self.day
-        print(time)
         while time < self.day+timedelta(days=1):
             self.production.append(forecast.get_forecast_by_timestamp(time))
             time=time+timedelta(minutes=1)

@@ -1,0 +1,53 @@
+# Ignore Python bytecode and cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Ignore C extensions
+*.so
+
+# Ignore virtual environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Ignore packaging files
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Ignore test and coverage files
+.tox/
+.nox/
+.pytest_cache/
+coverage.xml
+*.cover
+.hypothesis/
+
+# Ignore logs and temp files
+*.log
+*.tmp
+*.pid
+*.bak
+*.swp
+*.swo
+
+# Ignore Jupyter Notebook checkpoints
+.ipynb_checkpoints
+
+# Ignore version control files
+.git/
+.gitignore
+
+# Ignore other project-specific files
+local_settings.py
+instance/
+.webassets-cache
+
+# Ignore Docker-specific temporary files
+Dockerfile~

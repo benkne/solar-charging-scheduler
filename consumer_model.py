@@ -22,7 +22,7 @@ class PowerCurve:
         self.power: list[float] = power
         self.interval: TimeInterval = interval
     
-    def getPower(self, time: datetime):
+    def getPower(self, time: datetime) -> float:
         if(time<self.interval.time_start or time>self.interval.time_end):
             return 0
         minutes_diff = int((time - self.interval.time_start).total_seconds() / 60.0)
@@ -55,7 +55,7 @@ class Consumer:
             consumers.append(consumer)
         return consumers
     
-    def printAllStats(vehicles: List[Vehicle], consumers: List["Consumer"]):
+    def printAllStats(vehicles: List[Vehicle], consumers: List["Consumer"]) -> None:
         print('\n')
         for v in vehicles:
             consumer = next((c for c in consumers if c.id_user == v.id_user), None)
@@ -68,13 +68,13 @@ class Consumer:
             print("------------------------")
 
 class Segment:
-    def __init__(self, id_user: str, interval: TimeInterval, power: int, basePower: int):
+    def __init__(self, id_user: str, interval: TimeInterval, power: float, basePower: float):
         self.id_user = id_user
         self.interval = interval
         self.power = power
         self.basePower = basePower
 
-    def powerOfTimestep(self, timestep: datetime.datetime) -> int:
+    def powerOfTimestep(self, timestep: datetime.datetime) -> float:
         if(self.interval.timeInInterval(timestep)):
             return self.power
         return 0
@@ -87,7 +87,7 @@ class ConsumerPlot:
         for consumer in consumers:
             self.createSegments(consumer,consumer.interval.time_start)
                 
-    def totalTimestepPower(self, timestep: datetime.datetime):
+    def totalTimestepPower(self, timestep: datetime.datetime) -> float:
         totalPower = 0
         for segment in self.consumerSegments:
             totalPower = totalPower+segment.powerOfTimestep(timestep)
@@ -98,7 +98,7 @@ class ConsumerPlot:
         time = startTime
         while time <= consumer.interval.time_end:
             currentPower = self.totalTimestepPower(time)
-            if currentPower != basePower:
+            if currentPower != basePower or consumer.power.getPower(time) != consumer.power.getPower(time+datetime.timedelta(minutes=1)):
                 self.consumerSegments.append(Segment(
                     consumer.id_user,
                     TimeInterval(startTime, time-datetime.timedelta(minutes=1)), 
@@ -118,7 +118,7 @@ class ConsumerPlot:
 
             time += datetime.timedelta(minutes=1)
             
-    def visualize(self,ax):
+    def visualize(self,ax) -> None:
         for s in self.consumerSegments:
             time_start = s.interval.time_start
             power_start = s.basePower
