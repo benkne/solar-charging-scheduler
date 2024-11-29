@@ -30,6 +30,9 @@ class PowerCurve:
             return 0
         return self.power[minutes_diff]
     
+    def getEnergy(self) -> float:
+        return sum(self.power)/60
+    
 class Consumer:
     def __init__(self, id_user: str, power: PowerCurve, interval: TimeInterval):
         self.id_user: str = id_user
@@ -55,17 +58,32 @@ class Consumer:
             consumers.append(consumer)
         return consumers
     
+    def unstarted_consumers(consumers: List["Consumer"], time: datetime) -> List[str]:
+        consumer_ids = [c.id_user for c in consumers if c.interval.time_start>time]
+        return consumer_ids
+    
     def printAllStats(vehicles: List[Vehicle], consumers: List["Consumer"]) -> None:
         print('\n')
+        requirement_missed = []
         for v in vehicles:
+            print(f"User ID: {v.id_user}")
+            print(f"SoC required: {v.percent_leave:.0f}%")
+            print(f"Energy required: {v.energy_required:.1f} kWh")
             consumer = next((c for c in consumers if c.id_user == v.id_user), None)
             if(consumer==None):
-                print(v)
                 print("Vehicle not scheduled.")
+                print(f"Energy charged: 0 kWh")
             else:
-                print(v)
-                print(consumer)
+                soc_charged = (v.battery_size*v.percent_arrive/100+consumer.power.getEnergy()/1000)/v.battery_size
+                print(f"SoC charged: {soc_charged*100:.0f}%")
+                print(f"Energy charged: {consumer.power.getEnergy()/1000:.1f} kWh")
+                if((consumer.power.getEnergy()/1000)/v.energy_required<0.99):
+                    requirement_missed.append(consumer.id_user)
             print("------------------------")
+        if(len(requirement_missed)==0):
+            print("All vehicles were charged successfully.")
+        else:
+            print(f"Required SoC missed for vehicles: {requirement_missed}")    
 
 class Segment:
     def __init__(self, id_user: str, interval: TimeInterval, power: float, basePower: float):

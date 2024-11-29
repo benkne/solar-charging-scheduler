@@ -18,7 +18,7 @@ class Vehicle:
         self.battery_size: float = battery_size
         self.charge_max: float = charge_max
 
-        self.energy_required: float = battery_size*(percent_leave-percent_arrive)/100 if (self.percent_leave>self.percent_arrive) else 0 
+        self.energy_required: float = max(battery_size*(percent_leave-percent_arrive)/100,0)
         self.charge_duration: int = int(self.energy_required/self.charge_max*60)
 
     def __str__(self) -> str:
@@ -68,7 +68,7 @@ class Vehicle:
                 charge_max=entry['charge_max']
                 required_energy = (percent_leave-percent_arrive)/100*battery_size # in kWh
                 parking_time = int((time_leave-time_arrive).total_seconds())/60 # in minutes
-                
+
                 max_possible_energy = parking_time/60*charge_max
                 if(max_possible_energy<required_energy): # check if the desired SoC can possibly be reached bevore leaving
                     percent_leave_old = percent_leave
@@ -86,3 +86,6 @@ class Vehicle:
                 )
                 vehicles.append(vehicle)
         return vehicles
+    
+    def vehicles_arriving(vehicles: List["Vehicle"],time: datetime) -> List["Vehicle"]:
+        return [v for v in vehicles if v.time_arrive==time]

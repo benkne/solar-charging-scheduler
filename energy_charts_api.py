@@ -1,22 +1,8 @@
 import requests
 from datetime import datetime
-import pytz
 from forecast_power import Datapoint,Forecast
 
 DEFAULT_URL = "https://api.energy-charts.info/public_power_forecast?country=at&production_type=solar&forecast_type=current"
-
-
-def convert_unix_to_cest(unix_timestamp: int) -> datetime:
-    dt_utc = datetime.utcfromtimestamp(unix_timestamp)
-    
-    utc_zone = pytz.utc
-
-    dt_utc = utc_zone.localize(dt_utc)
-    cest_zone = pytz.timezone('Europe/Berlin')
-    dt_cest = dt_utc.astimezone(cest_zone)
-
-    return datetime.fromtimestamp(unix_timestamp)    
-    return dt_cest.replace(tzinfo=None)
 
 def api_request(url=DEFAULT_URL) -> Forecast:
 
@@ -37,7 +23,7 @@ def api_request(url=DEFAULT_URL) -> Forecast:
         forecast_values = data.get('forecast_values', [])
         forecast_values = [value*1_000_000 for value in forecast_values] # scale MW to W
 
-        times = [convert_unix_to_cest(seconds) for seconds in unix_seconds]
+        times = [datetime.fromtimestamp(seconds) for seconds in unix_seconds]
 
         datapoints = [Datapoint(times[i],forecast_values[i]) for i in range(0,len(times))]
         forecast = Forecast(datapoints)
