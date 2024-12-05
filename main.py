@@ -10,7 +10,7 @@ from vehicle import Vehicle
 from forecast_power import Forecast
 from renewable_production import Production
 from consumer_model import Consumer, ConsumerPlot
-import dynamic_scheduling
+from dynamic_scheduling import SchedulingParameters, greedy
 import numpy as np
 import argparse
 
@@ -23,7 +23,9 @@ class SimulationParameters:
                  simulationdate = datetime.now() + timedelta(days=1),
                  peakSolarPower = 300_000, # 300 kWp
                  peakPowerForecast = 4_196_000_000, # 4196 MW Spitzenwert im Jahr 2024 (juni) / energy-charts.info
-                 forecastapi = "https://api.energy-charts.info/public_power_forecast?country=at&production_type=solar&forecast_type=current"
+                 smoothForecast = True,
+                 forecastapi = "https://api.energy-charts.info/public_power_forecast?country=at&production_type=solar&forecast_type=current",
+                 scheduling = SchedulingParameters()
                 ):
         self.testdatapath = testdatapath
         self.resultpath = resultpath
@@ -32,8 +34,41 @@ class SimulationParameters:
         self.simulationdate = datetime(simulationdate.year,simulationdate.month,simulationdate.day)
         self.peakSolarPower = peakSolarPower
         self.peakPowerForecast = peakPowerForecast
+        self.smoothForecast = smoothForecast
         self.forecastapi = forecastapi
+        self.scheduling = scheduling
 
+    def to_dict(self):
+        return {
+            "testdatapath": self.testdatapath,
+            "resultpath": self.resultpath,
+            "exportresults": self.exportresults,
+            "hideresults": self.hideresults,
+            "simulationdate": self.simulationdate.timestamp(),
+            "peakSolarPower": self.peakSolarPower,
+            "peakPowerForecast": self.peakPowerForecast,
+            "smoothForecast": self.smoothForecast,
+            "forecastapi": self.forecastapi,
+            "scheduling": self.scheduling.to_dict()
+        }
+    
+    @staticmethod
+    def from_dict(data: dict) -> "SimulationParameters":
+        scheduling = SchedulingParameters.from_dict(data["scheduling"])
+        simulationdate = datetime.fromtimestamp(data["simulationdate"])
+        
+        return SimulationParameters(
+            testdatapath=data["testdatapath"],
+            resultpath=data["resultpath"],
+            exportresults=data["exportresults"],
+            hideresults=data["hideresults"],
+            simulationdate=simulationdate,
+            peakSolarPower=data["peakSolarPower"],
+            peakPowerForecast=data["peakPowerForecast"],
+            smoothForecast=data["smoothForecast"],
+            forecastapi=data["forecastapi"],
+            scheduling=scheduling
+        )
 # ---------------- functions ---------------- #
 
 def read_json(file_path: str) -> Optional[List[dict]]:
@@ -71,6 +106,28 @@ def remove_consumer_from_powerUsage(simulationdate: datetime, powerUsage: List[f
         i+=1
     return powerUsage
 
+def generate_json(filename: str, simulation_parameters: SimulationParameters, vehicles: List[Vehicle], consumers: List[Consumer], powerUsage: List[float]):
+    dict_data = {"simulation_parameters": simulation_parameters.to_dict(),
+                 "vehicles": Vehicle.vehicles_to_dict(vehicles),
+                 "consumers": Consumer.consumers_to_dict(consumers),
+                 "power_usage": powerUsage
+                }
+
+    with open(filename, 'w') as file:
+        json.dump(dict_data, file, indent=4)
+
+def load_json_to_objects(filename: str):
+    with open(filename, "r") as file:
+        data = json.load(file)
+        
+        # Deserialize each object
+        simulation_parameters = SimulationParameters.from_dict(data["simulation_parameters"])
+        vehicles = Vehicle.vehicles_from_dict(data["vehicles"])
+        consumers = Consumer.consumers_from_dict(data["consumers"])
+        power_usage = data["power_usage"]
+        
+        return simulation_parameters, vehicles, consumers, power_usage
+
 # ---------------- simulation ---------------- #
 
 def simulate(simulation_parameters: SimulationParameters):
@@ -86,7 +143,7 @@ def simulate(simulation_parameters: SimulationParameters):
     print("# Making forecast API request...")
     forecast: Forecast = energy_charts_api.api_request(simulation_parameters.forecastapi)
     forecast.scale(simulation_parameters.peakSolarPower, simulation_parameters.peakPowerForecast)
-    solarProduction = Production(forecast,simulationdate) 
+    solarProduction = Production(forecast, simulationdate, smooth=simulation_parameters.smoothForecast) 
 
     print("# Preparing vehicle data...")
     vehicles = Vehicle.sort_vehicles_by_arrive_time(vehicles)
@@ -119,7 +176,6 @@ def simulate(simulation_parameters: SimulationParameters):
     print("\n------- Simulation starting -------")
 
     consumers = []
-    advanced_consumers = []
     powerUsage = [0.0]*24*60
 
     time_vector = generate_time_vector(simulationdate)
@@ -127,7 +183,7 @@ def simulate(simulation_parameters: SimulationParameters):
         arriving_vehicles: List[Vehicle] = []
 
         arriving_vehicles = Vehicle.vehicles_arriving(vehicles,t)
-        
+
         schedule_vehicles = arriving_vehicles
         if(len(schedule_vehicles) != 0):
             consumer_ids = Consumer.unstarted_consumers(consumers,t)
@@ -144,16 +200,10 @@ def simulate(simulation_parameters: SimulationParameters):
             renewable_available = np.subtract(renewable_available,powerUsage)
             renewable_available = np.maximum(renewable_available,0)
             
-            added_consumers,updated_powerUsage = dynamic_scheduling.greedy(schedule_vehicles, simulationdate, renewable_available)
-            #added_consumers,updated_powerUsage = dynamic_scheduling.differential_evolution(schedule_vehicles, simulationdate, renewable_available)
+            added_consumers,updated_powerUsage = greedy(simulation_parameters.scheduling, schedule_vehicles, simulationdate, renewable_available)
 
             consumers.extend(added_consumers)
-            powerUsage = np.add(powerUsage,updated_powerUsage)
-        
-            # check if solar energy can be used more efficiently
-            # unused_solar_energy = (sum([max(solarProduction.production[i]-powerUsage[i],0) for i in range(len(powerUsage))])/60/1000)
-            # print(f"Unused solar energy: {unused_solar_energy:.2f} kWh")
-            # advanced_consumers = consumers
+            powerUsage = list(np.add(powerUsage,updated_powerUsage))
 
     print("------- Simulation ended -------\n")
 
@@ -199,8 +249,9 @@ def simulate(simulation_parameters: SimulationParameters):
         consumerPlot: ConsumerPlot = ConsumerPlot(consumers)
         consumerPlot.visualize(ax)
 
-        plt.xlim(datetime(simulationdate.year,simulationdate.month,simulationdate.day,6,0),datetime(simulationdate.year,simulationdate.month,simulationdate.day,17,59))
-        plt.ylim((0,forecast.getDailyPeak(simulationdate)*1.2))
+        sorted_consumers: List[Consumer] = Consumer.sort_consumers_by_start_time(consumers)
+        plt.xlim(sorted_consumers[0].power.interval.time_start-timedelta(minutes=30),sorted_consumers[-1].power.interval.time_end+timedelta(minutes=30))
+        plt.ylim((0,max(forecast.getDailyPeak(simulationdate),max(powerUsage))*1.15))
         plt.legend(loc="upper left")
         plt.tight_layout() 
         plt.show()
@@ -218,7 +269,9 @@ def main():
     parser.add_argument('-d', '--simulationdate', type=str)
     parser.add_argument('-p', '--peaksolarpower', type=float)
     parser.add_argument('-f', '--peakpowerforecast', type=float)
+    parser.add_argument('-o', '--smoothforecast', type=str, default='true')
     parser.add_argument('-a', '--forecastapi', type=str)
+    parser.add_argument('-s', '--scheduling', type=str)
     args = parser.parse_args()
 
     simulation_parameters = SimulationParameters()
@@ -242,9 +295,15 @@ def main():
     if args.peaksolarpower is not None:
         simulation_parameters.peakSolarPower = args.peaksolarpower
     if args.peakpowerforecast is not None:
-        simulation_parameters.peakpowerforecast = args.peakPowerForecast
+        simulation_parameters.peakPowerForecast = args.peakPowerForecast
+    if args.smoothforecast is not None:
+        simulation_parameters.smoothForecast = args.smoothforecast.lower() == 'true'
     if args.forecastapi is not None:
         simulation_parameters.forecastapi = args.forecastapi
+    if args.scheduling is not None:
+        scheduling_parameters = SchedulingParameters()
+        scheduling_parameters.parseSchedulingParameters(args.scheduling)
+        simulation_parameters.scheduling = scheduling_parameters
 
     simulate(simulation_parameters)
     

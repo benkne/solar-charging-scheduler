@@ -31,12 +31,15 @@ class Forecast:
             scaled_value = (datapoint.forecast_value / austrianpeak) * scaledpeak
             datapoint.forecast_value = scaled_value
 
-    def get_forecast_by_timestamp(self, time: datetime.datetime) -> float:
+    def get_forecast_by_timestamp(self, time: datetime.datetime, smooth=True) -> float:
         for i in range(len(self.datapoints) - 1):
             current_point = self.datapoints[i]
             next_point = self.datapoints[i+1]
             if current_point.timestamp <= time and next_point.timestamp > time:
-                return current_point.forecast_value+(next_point.forecast_value-current_point.forecast_value)*(time-current_point.timestamp).total_seconds()/60/15
+                if smooth:
+                    return current_point.forecast_value+(next_point.forecast_value-current_point.forecast_value)*(time-current_point.timestamp).total_seconds()/60/15
+                else:
+                    return current_point.forecast_value
         return 0
     
     def getDailyForecast(self, datetime: datetime.datetime):

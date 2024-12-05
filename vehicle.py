@@ -1,4 +1,4 @@
-import datetime
+from datetime import datetime
 from typing import List, Optional
 
 class Vehicle:
@@ -50,12 +50,12 @@ class Vehicle:
         vehicles: List[Vehicle] = []
         if data:
             for entry in data:
-                time_arrive: datetime = datetime.datetime(simulationdate.year,
+                time_arrive: datetime = datetime(simulationdate.year,
                                                         simulationdate.month,
                                                         simulationdate.day,
                                                         int(entry['time_arrive'][:2]),
                                                         int(entry['time_arrive'][3:]))
-                time_leave: datetime = datetime.datetime(simulationdate.year,
+                time_leave: datetime = datetime(simulationdate.year,
                                                         simulationdate.month,
                                                         simulationdate.day,
                                                         int(entry['time_leave'][:2]),
@@ -89,3 +89,39 @@ class Vehicle:
     
     def vehicles_arriving(vehicles: List["Vehicle"],time: datetime) -> List["Vehicle"]:
         return [v for v in vehicles if v.time_arrive==time]
+    
+    def to_dict(self):
+        return {
+            "id_user": self.id_user,
+            "time_arrive": self.time_arrive.timestamp(),
+            "time_leave": self.time_leave.timestamp(),
+            "percent_arrive": self.percent_arrive,
+            "percent_leave": self.percent_leave,
+            "battery_size": self.battery_size,
+            "charge_max": self.charge_max,
+            "energy_required": self.energy_required,
+            "charge_duration": self.charge_duration
+        }
+
+    @staticmethod
+    def vehicles_to_dict(vehicles: List["Vehicle"]):
+        return [vehicle.to_dict() for vehicle in vehicles]
+    
+    @staticmethod
+    def from_dict(data: dict) -> "Vehicle":
+        time_arrive = datetime.fromtimestamp(data["time_arrive"])
+        time_leave = datetime.fromtimestamp(data["time_leave"])
+        
+        return Vehicle(
+            id_user=data["id_user"],
+            time_arrive=time_arrive,
+            time_leave=time_leave,
+            percent_arrive=data["percent_arrive"],
+            percent_leave=data["percent_leave"],
+            battery_size=data["battery_size"],
+            charge_max=data["charge_max"]
+        )
+
+    @staticmethod
+    def vehicles_from_dict(data: List[dict]) -> List["Vehicle"]:
+        return [Vehicle.from_dict(vehicle_data) for vehicle_data in data]
