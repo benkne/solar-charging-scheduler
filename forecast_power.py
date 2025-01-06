@@ -107,37 +107,41 @@ class Forecast:
     def visualizeSin2(self, plt, simulationdate):
         guesstime = datetime.datetime(simulationdate.year,simulationdate.month,simulationdate.day,hour=12)
         sin2 = lambda x,a,b,c: a * np.sin(np.pi*(x-c-1/b/2)*b) * np.sin(np.pi*(x-c-1/b/2)*b)
-
         
-        day_time = [datetime.datetime.timestamp(time) for time in self.getDailyForecast(guesstime).getTimesteps()]
-        day_values = self.getDailyForecast(guesstime).getValues()
+        dailyforecast = self.getDailyForecast(guesstime)
 
-        startTimeIndex = 0
-        endTimeIndex = 0
-        for i in range(0,len(day_time)):
-            if(day_values[i]!=0 and startTimeIndex==0):
-                startTimeIndex=i
-            if(day_values[-i-1]!=0 and endTimeIndex==0):
-                endTimeIndex=len(day_time)-i
+        if(len(dailyforecast.datapoints)):
+        
+            day_time = [datetime.datetime.timestamp(time) for time in dailyforecast.getTimesteps()]
+            day_values = dailyforecast.getValues()
 
-        # extend time for 15 Minutes
-        startTimeIndex=startTimeIndex-1
-        endTimeIndex=endTimeIndex+1
+            startTimeIndex = 0
+            endTimeIndex = 0
+            for i in range(0,len(day_time)):
+                if(day_values[i]!=0 and startTimeIndex==0):
+                    startTimeIndex=i
+                if(day_values[-i-1]!=0 and endTimeIndex==0):
+                    endTimeIndex=len(day_time)-i
 
-        day_time = day_time[startTimeIndex:endTimeIndex]
-        day_values = day_values[startTimeIndex:endTimeIndex]
+            # extend time for 15 Minutes
+            startTimeIndex=startTimeIndex-1
+            endTimeIndex=endTimeIndex+1
 
-        max_value = np.max(day_values)
+            day_time = day_time[startTimeIndex:endTimeIndex]
+            day_values = day_values[startTimeIndex:endTimeIndex]
 
-        initial_guess = [max_value, 1/(60*60*10), datetime.datetime.timestamp(guesstime)]
-        params, covariance = curve_fit(sin2, 
-                                    day_time, 
-                                    day_values, 
-                                    p0=initial_guess,
-                                    bounds = (0, [np.inf, np.inf, np.inf]))
-        a_fit, b_fit, c_fit = params
+            max_value = np.max(day_values)
 
-        x_values = np.arange(day_time[0], day_time[-1]+1,60)
-        y_values = [sin2(x, a_fit, b_fit, c_fit) for x in x_values]
+            initial_guess = [max_value, 1/(60*60*10), datetime.datetime.timestamp(guesstime)]
+            params, covariance = curve_fit(sin2, 
+                                        day_time, 
+                                        day_values, 
+                                        p0=initial_guess,
+                                        bounds = (0, [np.inf, np.inf, np.inf]))
+            a_fit, b_fit, c_fit = params
 
-        plt.plot([datetime.datetime.fromtimestamp(x) for x in x_values], y_values, marker='', linestyle='--', color='g',label="sin² fit of forecast")
+            x_values = np.arange(day_time[0], day_time[-1]+1,60)
+
+            y_values = [sin2(x, a_fit, b_fit, c_fit) for x in x_values]
+
+            plt.plot([datetime.datetime.fromtimestamp(x) for x in x_values], y_values, marker='', linestyle='--', color='g',label="sin² fit of forecast")

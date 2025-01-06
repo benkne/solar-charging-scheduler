@@ -45,6 +45,9 @@ class Vehicle:
     
     def sort_vehicles_by_max_power(vehicles: List["Vehicle"]) -> List["Vehicle"]:
         return sorted(vehicles, reverse=True, key=lambda vehicle: vehicle.charge_max)
+    
+    def sort_vehicles_by_energy(vehicles: List["Vehicle"]) -> List["Vehicle"]:
+        return sorted(vehicles, reverse=True, key=lambda vehicle: vehicle.energy_required)
 
     def create_vehicles(data: Optional[List[dict]], simulationdate: datetime) -> List["Vehicle"]:
         vehicles: List[Vehicle] = []
@@ -125,3 +128,89 @@ class Vehicle:
     @staticmethod
     def vehicles_from_dict(data: List[dict]) -> List["Vehicle"]:
         return [Vehicle.from_dict(vehicle_data) for vehicle_data in data]
+    
+
+def prompt_vehicle(simulationdate: datetime, vehicles: List[Vehicle]):
+    print("Enter vehicle details:")
+
+    while True:
+        id_user = input("User ID: ")
+        if any(vehicle.id_user == id_user for vehicle in vehicles):
+            print("A vehicle with this User ID already exists. Please enter a unique User ID.")
+        else:
+            break
+
+    while True:
+        try:
+            time_arrive_str = input("Arrival time HH:MM: ")
+            time_arrive_str = time_arrive_str.split(":")
+            time_arrive: datetime = datetime(simulationdate.year,
+                                        simulationdate.month,
+                                        simulationdate.day,
+                                        int(time_arrive_str[0]),
+                                        int(time_arrive_str[1]))
+            if vehicles and any(time_arrive < vehicle.time_arrive for vehicle in vehicles):
+                print("Arrival time must be after the arrival times of all other vehicles.")
+            else:
+                break
+        except ValueError:
+            print("Invalid format. Please enter the date and time in the format HH:MM.")
+
+    while True:
+        try:
+            time_leave_str = input("Leave time HH:MM: ")
+            time_leave_str = time_leave_str.split(":")
+            time_leave: datetime = datetime(simulationdate.year,
+                                        simulationdate.month,
+                                        simulationdate.day,
+                                        int(time_leave_str[0]),
+                                        int(time_leave_str[1]))
+            if time_leave > time_arrive:
+                break
+            else:
+                print("Leave time must be after arrival time.")
+        except ValueError:
+            print("Invalid format. Please enter the date and time in the format HH:MM.")
+
+    while True:
+        try:
+            percent_arrive = int(input("Arrival battery percentage (0-100): "))
+            if 0 <= percent_arrive <= 100:
+                break
+            else:
+                print("Please enter a value between 0 and 100.")
+        except ValueError:
+            print("Invalid input. Please enter an integer.")
+
+    while True:
+        try:
+            percent_leave = int(input("Leave battery percentage (0-100): "))
+            if 0 <= percent_leave <= 100:
+                break
+            else:
+                print("Please enter a value between 0 and 100.")
+        except ValueError:
+            print("Invalid input. Please enter an integer.")
+
+    while True:
+        try:
+            battery_size = float(input("Battery size (kWh): "))
+            if battery_size > 0:
+                break
+            else:
+                print("Please enter a positive number.")
+        except ValueError:
+            print("Invalid input. Please enter a numeric value.")
+
+    while True:
+        try:
+            charge_max = float(input("Maximum charge rate (kW): "))
+            if charge_max > 0:
+                break
+            else:
+                print("Please enter a positive number.")
+        except ValueError:
+            print("Invalid input. Please enter a numeric value.")
+
+    return Vehicle(id_user, time_arrive, time_leave, percent_arrive, percent_leave, battery_size, charge_max)
+

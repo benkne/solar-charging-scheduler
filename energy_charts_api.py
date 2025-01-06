@@ -2,9 +2,7 @@ import requests
 from datetime import datetime
 from forecast_power import Datapoint,Forecast
 
-DEFAULT_URL = "https://api.energy-charts.info/public_power_forecast?country=at&production_type=solar&forecast_type=current"
-
-def api_request(url=DEFAULT_URL) -> Forecast:
+def api_request(url) -> Forecast:
 
     try:
         response = requests.get(url, verify=True)
@@ -33,4 +31,5 @@ def api_request(url=DEFAULT_URL) -> Forecast:
         raise Exception(f"Error: {response.status_code}. Failed to fetch data.") 
 
 if __name__ == "__main__":
-    print(api_request())
+    energy_charts_url = "https://api.energy-charts.info/public_power_forecast?country=at&production_type=solar&forecast_type=current"
+    print(api_request(energy_charts_url))

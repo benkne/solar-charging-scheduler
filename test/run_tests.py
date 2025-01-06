@@ -5,15 +5,17 @@ import datetime
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from main import simulate,SimulationParameters
+from main import simulate
+from parameters import SimulationParameters
 
 ITERATIONS=100
 
 simulation_parameters = SimulationParameters()
-simulation_parameters.peakSolarPower=300_000
+simulation_parameters.peakSolarPower=200_000
 simulation_parameters.hideresults=True
 simulation_parameters.exportresults=True
-simulation_parameters.simulationdate=datetime.datetime(2024,11,30)
+simulation_parameters.simulationdate=datetime.datetime(2025,1,6)
+
 
 testdata_parameters = TestdataParameters()
 testdata_parameters.vehiclecount=12
