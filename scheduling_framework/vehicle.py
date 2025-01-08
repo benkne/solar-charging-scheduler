@@ -64,7 +64,7 @@ class Vehicle:
                                                         int(entry['time_leave'][:2]),
                                                         int(entry['time_leave'][3:]))
                 
-                id_user=entry['id_user']
+                id_user=str(entry['id_user'])# +"_"+entry['time_arrive'][:2]+entry['time_arrive'][3:] # make user id unique by extending the id by the the arrive time
                 percent_arrive=entry['percent_arrive']
                 percent_leave=entry['percent_leave']
                 battery_size=entry['battery_size']
@@ -130,87 +130,83 @@ class Vehicle:
         return [Vehicle.from_dict(vehicle_data) for vehicle_data in data]
     
 
-def prompt_vehicle(simulationdate: datetime, vehicles: List[Vehicle]):
-    print("Enter vehicle details:")
+def add_vehicle(simulationdate: datetime, vehicles: List[Vehicle], vehicle: str):
+    if(vehicle is None):
+        print("Error: Vehicle not set!")
+        exit()
+    vehicle_parameters = vehicle.split(',')
 
-    while True:
-        id_user = input("User ID: ")
-        if any(vehicle.id_user == id_user for vehicle in vehicles):
-            print("A vehicle with this User ID already exists. Please enter a unique User ID.")
-        else:
-            break
+    id_user = vehicle_parameters[0]
+    if any(vehicle.id_user == id_user for vehicle in vehicles):
+        print("Error: A vehicle with this User ID already exists. Please enter a unique User ID.")
+        exit()
 
-    while True:
-        try:
-            time_arrive_str = input("Arrival time HH:MM: ")
-            time_arrive_str = time_arrive_str.split(":")
-            time_arrive: datetime = datetime(simulationdate.year,
-                                        simulationdate.month,
-                                        simulationdate.day,
-                                        int(time_arrive_str[0]),
-                                        int(time_arrive_str[1]))
-            if vehicles and any(time_arrive < vehicle.time_arrive for vehicle in vehicles):
-                print("Arrival time must be after the arrival times of all other vehicles.")
-            else:
-                break
-        except ValueError:
-            print("Invalid format. Please enter the date and time in the format HH:MM.")
+    try:
+        time_arrive_str = vehicle_parameters[1]
+        time_arrive_str = time_arrive_str.split(":")
+        time_arrive: datetime = datetime(simulationdate.year,
+                                    simulationdate.month,
+                                    simulationdate.day,
+                                    int(time_arrive_str[0]),
+                                    int(time_arrive_str[1]))
+        if vehicles and any(time_arrive < vehicle.time_arrive for vehicle in vehicles):
+            print("Error: Arrival time must be after the arrival times of all other vehicles.")
+            exit()
+            
+    except ValueError:
+        print("Error: Invalid format. Please enter the date and time in the format HH:MM.")
+        exit()
 
-    while True:
-        try:
-            time_leave_str = input("Leave time HH:MM: ")
-            time_leave_str = time_leave_str.split(":")
-            time_leave: datetime = datetime(simulationdate.year,
-                                        simulationdate.month,
-                                        simulationdate.day,
-                                        int(time_leave_str[0]),
-                                        int(time_leave_str[1]))
-            if time_leave > time_arrive:
-                break
-            else:
-                print("Leave time must be after arrival time.")
-        except ValueError:
-            print("Invalid format. Please enter the date and time in the format HH:MM.")
+    try:
+        time_leave_str = vehicle_parameters[2]
+        time_leave_str = time_leave_str.split(":")
+        time_leave: datetime = datetime(simulationdate.year,
+                                    simulationdate.month,
+                                    simulationdate.day,
+                                    int(time_leave_str[0]),
+                                    int(time_leave_str[1]))
+        if time_leave <= time_arrive:
+            print("Error: Leave time must be after arrival time.")
+            exit()
+    except ValueError:
+        print("Error: Invalid format. Please enter the date and time in the format HH:MM.")
+        exit()
 
-    while True:
-        try:
-            percent_arrive = int(input("Arrival battery percentage (0-100): "))
-            if 0 <= percent_arrive <= 100:
-                break
-            else:
-                print("Please enter a value between 0 and 100.")
-        except ValueError:
-            print("Invalid input. Please enter an integer.")
+    try:
+        percent_arrive = float(vehicle_parameters[3])
+        if not (0 <= percent_arrive <= 100):
+            print("Error: Please enter a value between 0 and 100.")
+            exit()
+    except ValueError:
+        print("Error: Invalid input. Please enter an integer.")
+        exit()
 
-    while True:
-        try:
-            percent_leave = int(input("Leave battery percentage (0-100): "))
-            if 0 <= percent_leave <= 100:
-                break
-            else:
-                print("Please enter a value between 0 and 100.")
-        except ValueError:
-            print("Invalid input. Please enter an integer.")
+    try:
+        percent_leave = float(vehicle_parameters[4])
+        if not (0 <= percent_arrive <= 100):
+            print("Error: Please enter a value between 0 and 100.")
+            exit()
+    except ValueError:
+        print("Error: Invalid input. Please enter an integer.")
+        exit()
 
-    while True:
-        try:
-            battery_size = float(input("Battery size (kWh): "))
-            if battery_size > 0:
-                break
-            else:
-                print("Please enter a positive number.")
-        except ValueError:
-            print("Invalid input. Please enter a numeric value.")
+    try:
+        battery_size = float(vehicle_parameters[5])
+        if battery_size <= 0:
+            print("Error: Please enter a positive number.")
+            exit()
+    except ValueError:
+        print("Error: Invalid input. Please enter a numeric value.")
+        exit()
 
-    while True:
-        try:
-            charge_max = float(input("Maximum charge rate (kW): "))
-            if charge_max > 0:
-                break
-            else:
-                print("Please enter a positive number.")
-        except ValueError:
-            print("Invalid input. Please enter a numeric value.")
+    try:
+        charge_max = float(vehicle_parameters[6])
+        if charge_max <= 0:
+            print("Error: Please enter a positive number.")
+            exit()
+    except ValueError:
+        print("Error: Invalid input. Please enter a numeric value.")
+        exit()
 
     return Vehicle(id_user, time_arrive, time_leave, percent_arrive, percent_leave, battery_size, charge_max)
 

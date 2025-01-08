@@ -1,8 +1,9 @@
-from forecast_power import Forecast
-from datetime import datetime, timedelta
-import matplotlib.pyplot as plt
-from typing import List
 import numpy as np
+import matplotlib.pyplot as plt
+from datetime import datetime, timedelta
+from typing import List
+
+from scheduling_framework.forecast_power import Forecast
 
 class Production:
     def __init__(self, forecast: Forecast, timestamp: datetime, smooth: bool = True):

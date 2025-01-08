@@ -1,22 +1,19 @@
 import os
 import json
 import csv
-import energy_charts_api
-from forecast_power import Forecast
-from datetime import datetime,timedelta
-import matplotlib.pyplot as plt
-from typing import List, Optional
 import numpy as np
 import argparse
+from datetime import datetime
+from typing import List, Optional
 
-from vehicle import Vehicle
-from forecast_power import Forecast
-from renewable_production import Production
-from consumer_model import Consumer, ConsumerPlot, PowerCurve, TimeInterval
-from dynamic_scheduling import SchedulingParameters, dynamic_scheduling, no_strategy, overcharge_scheduling
+import scheduling_framework.energy_charts_api as energy_charts_api
 import simulation
 from simulation import SimulationParameters, generate_time_vector, total_power_usage
-
+from scheduling_framework.vehicle import Vehicle
+from scheduling_framework.forecast_power import Forecast
+from scheduling_framework.renewable_production import Production
+from scheduling_framework.consumer_model import Consumer
+from scheduling_framework.dynamic_scheduling import dynamic_scheduling, no_strategy, overcharge_scheduling
 
 # ---------------- functions ---------------- #
 
@@ -130,7 +127,7 @@ def simulate(simulation_parameters: SimulationParameters):
             renewable_power = Production.renewable_available(solarProduction.production,powerUsage)
             
             added_consumers = dynamic_scheduling(simulation_parameters.scheduling, schedule_vehicles, t, renewable_power)
-            #added_consumers = no_strategy(simulation_parameters.scheduling, schedule_vehicles, t, renewable_power)
+            # added_consumers = no_strategy(simulation_parameters.scheduling, schedule_vehicles, t, renewable_power) # no_strategy instantly starts the charging process for arriving vehicles. There will be no overcharging.
 
             consumers.extend(added_consumers)
 
@@ -139,6 +136,7 @@ def simulate(simulation_parameters: SimulationParameters):
             ##### overcharging logic #####
             if(simulation_parameters.scheduling.overcharge):
                 consumers, overchargePower = overcharge_scheduling(consumers,vehicles,solarProduction,powerUsage,t)
+
             powerUsage = list(np.add(powerUsage,overchargePower))
 
     print("------- Simulation ended -------\n")
@@ -169,44 +167,13 @@ def simulate(simulation_parameters: SimulationParameters):
             print(f"Error: Failed to write data to file {simulation_parameters.resultpath}.")
 
     if(not simulation_parameters.hideresults):
-        print("# Visualizing results...")
-        plt.figure(figsize=(10, 6))
-
-        solarProduction.visualize(plt)
-        #forecast.visualizeGauss(plt,simulationdate)
-        forecast.visualizeSin2(plt,simulationdate)
-        
-        plt.step(time_vector, powerUsage, where='post', marker='', linestyle='-', color='black',label="total consumed power")
-        plt.step(time_vector, overchargePower, where='post', marker='', linestyle='-', color='lime',label="overcharge power")
-        plt.step(time_vector,[max(solarProduction.production[i]-powerUsage[i],0) for i in range(len(powerUsage))],where='post',label="remaining solar power")
-        plt.step(time_vector,[max(-(solarProduction.production[i]-powerUsage[i]),0) for i in range(len(powerUsage))], color='r',where='post',label="power drawn from grid")
-
-        plt.title('Solar forecast and BEV consumption - {}kWp'.format(simulation_parameters.peakSolarPower/1000), fontsize=16)
-        plt.xlabel('Time (CEST)', fontsize=12)
-        plt.ylabel('Power (W)', fontsize=12)
-        plt.grid(True)
-        plt.xticks(rotation=45)
-
-        ax = plt.gca()
-        consumerPlot: ConsumerPlot = ConsumerPlot(consumers)
-        consumerPlot.visualize(ax)
-
-        consumers_sorted_starting: List[Consumer] = Consumer.sort_consumers_by_start_time(consumers)
-        consumers_sorted_ending: List[Consumer] = Consumer.sort_consumers_by_end_time(consumers)
-
-        last_consumer = consumers_sorted_ending[-1]
-        endtime = last_consumer.power.interval.time_end if last_consumer.overpower.interval is None else last_consumer.overpower.interval.time_end
-        plt.xlim(consumers_sorted_starting[0].power.interval.time_start-timedelta(minutes=30),endtime+timedelta(minutes=30))
-        plt.ylim((0,max(forecast.getDailyPeak(simulationdate),max(powerUsage))*1.15))
-        plt.legend(loc="upper left")
-        plt.tight_layout() 
-        plt.show()
+        simulation.visualize_results(consumers,solarProduction,forecast,simulation_parameters,powerUsage,overchargePower)
 
 # ---------------- main ---------------- #
     
 if __name__ == "__main__":
     p = argparse.ArgumentParser(
-                    prog='Simulate Charging Station Management',
+                    prog='run',
                     description='')
-    operation, simulation_parameters = simulation.parse(p)
+    simulation_parameters = simulation.parse(p)
     simulate(simulation_parameters)

@@ -1,19 +1,17 @@
 import argparse
 import json
+import numpy as np
+import matplotlib.pyplot as plt
+from datetime import timedelta, datetime
 from typing import List
 
-import energy_charts_api
-from datetime import timedelta, datetime
-from dynamic_scheduling import SchedulingParameters
-from vehicle import Vehicle, prompt_vehicle
-from forecast_power import Forecast
-from renewable_production import Production
-from consumer_model import Consumer, ConsumerPlot, PowerCurve, TimeInterval
-from dynamic_scheduling import SchedulingParameters, dynamic_scheduling, no_strategy, overcharge_scheduling
-import matplotlib.pyplot as plt
-from parameters import SimulationParameters
-
-import numpy as np
+import scheduling_framework.energy_charts_api as energy_charts_api
+from scheduling_framework.vehicle import Vehicle, add_vehicle
+from scheduling_framework.forecast_power import Forecast
+from scheduling_framework.renewable_production import Production
+from scheduling_framework.consumer_model import Consumer, ConsumerPlot
+from scheduling_framework.dynamic_scheduling import SchedulingParameters, dynamic_scheduling, no_strategy, overcharge_scheduling
+from scheduling_framework.parameters import SimulationParameters
     
 def generate_json(filename: str, simulation_parameters: SimulationParameters, vehicles: List[Vehicle], consumers: List[Consumer]):
     dict_data = {"simulation_parameters": simulation_parameters.to_dict(),
@@ -48,7 +46,6 @@ def total_power_usage(simulationdate: datetime, consumers: List[Consumer]):
     for c in consumers:
         power_start_index =int((c.power.interval.time_start.timestamp()-simulationdate.timestamp())/60)
         powerUsage = np.add(powerUsage,[0]*(power_start_index)+c.power.power+[0]*(24*60-power_start_index-len(c.power.power)))
-
     return powerUsage
 
 def overcharge_power(simulationdate: datetime, consumers: List[Consumer]):
@@ -60,11 +57,53 @@ def overcharge_power(simulationdate: datetime, consumers: List[Consumer]):
 
     return overchargePower
 
+def visualize_results(consumers: List[Consumer], solarProduction: Production, forecast: Forecast, simulation_parameters: SimulationParameters, powerUsage: List[float], overchargePower: List[float]):
+    print("# Visualizing results...")
+    simulationdate = simulation_parameters.simulationdate
+    plt.figure(figsize=(10, 6))
+
+    solarProduction.visualize(plt)
+    # forecast.visualizeGauss(plt,simulationdate)
+    forecast.visualizeSin2(plt,simulationdate)
+
+    time_vector: datetime = generate_time_vector(simulationdate)
+    
+    plt.step(time_vector, powerUsage, where='post', marker='', linestyle='-', color='black', label="total consumed power")
+    plt.step(time_vector, overchargePower, where='post', marker='', linestyle='-', color='lime', label="overcharge power")
+    plt.step(time_vector,[max(solarProduction.production[i]-powerUsage[i],0) for i in range(len(powerUsage))], where='post', label="remaining solar power")
+    plt.step(time_vector,[max(-(solarProduction.production[i]-powerUsage[i]),0) for i in range(len(powerUsage))], color='r', where='post', label="power drawn from grid")
+
+    plt.title('Solar forecast and BEV consumption - {}kWp'.format(simulation_parameters.peakSolarPower/1000), fontsize=16)
+    plt.xlabel('Time (CEST)', fontsize=12)
+    plt.ylabel('Power (W)', fontsize=12)
+    plt.grid(True)
+    plt.xticks(rotation=45)
+    
+    if(len(consumers)>0):
+        ax = plt.gca()
+        consumerPlot: ConsumerPlot = ConsumerPlot(consumers)
+        consumerPlot.visualize(ax)
+
+        consumers_sorted_starting: List[Consumer] = Consumer.sort_consumers_by_start_time(consumers)
+        consumers_sorted_ending: List[Consumer] = Consumer.sort_consumers_by_end_time(consumers)
+
+        last_consumer = consumers_sorted_ending[-1]
+        endtime = last_consumer.power.interval.time_end if last_consumer.overpower.interval is None else last_consumer.overpower.interval.time_end
+        plt.xlim(consumers_sorted_starting[0].power.interval.time_start-timedelta(minutes=30),endtime+timedelta(minutes=30))
+        plt.ylim((0,max(forecast.getDailyPeak(simulationdate),max(powerUsage))*1.15))
+    plt.legend(loc="upper left")
+    plt.tight_layout() 
+    plt.savefig('./results/output.png')
+    plt.show()
+
 def create(simulation_parameters: SimulationParameters):
     return [], []
 
-def add(simulation_parameters: SimulationParameters, vehicles: List[Vehicle]):
-    vehicle = prompt_vehicle(simulation_parameters.simulationdate, vehicles)
+def add(simulation_parameters: SimulationParameters, vehicles: List[Vehicle], vehicle: str):
+    if(vehicle is None):
+        print("Error: No vehicle specified.")
+        exit()
+    vehicle = add_vehicle(simulation_parameters.simulationdate, vehicles, vehicle)
     vehicles.append(vehicle)
     return vehicles
 
@@ -164,12 +203,12 @@ def visualize(simulation_parameters: SimulationParameters, vehicles: List[Vehicl
 
     Consumer.printAllStats(vehicles,consumers)
 
-    powerUsage = total_power_usage(simulationdate,consumers)
-    powerUsage = powerUsage + overcharge_power(simulationdate,consumers)
+    powerUsage = total_power_usage(simulationdate, consumers)
+    powerUsage = np.add(powerUsage,overcharge_power(simulationdate,consumers))
     overchargePower = overcharge_power(simulationdate,consumers)
 
     total_consumed_energy =(sum(powerUsage)/60/1000)
-    grid_energy = (sum([max(-(solarProduction.production[i]-powerUsage[i]),0) for i in range(len(powerUsage))])/60/1000)
+    grid_energy = (sum([max(-(solarProduction.production[i]-powerUsage[i]),0) for i in range(len(powerUsage))])/60/1000) if powerUsage is not None else 0
     unused_solar_energy = (sum([max(solarProduction.production[i]-powerUsage[i],0) for i in range(len(powerUsage))])/60/1000)
     ### print stats (finished) ###
     print(f"Total energy consumed: {total_consumed_energy:.2f} kWh ({(grid_energy/total_consumed_energy*100 if total_consumed_energy != 0 else 0):.0f}% grid, {((1-grid_energy/total_consumed_energy)*100  if total_consumed_energy != 0 else 0):.0f}% solar)")
@@ -177,41 +216,7 @@ def visualize(simulation_parameters: SimulationParameters, vehicles: List[Vehicl
     print(f"Solar energy unused: {unused_solar_energy:.2f} kWh ({(unused_solar_energy/solar_energy*100 if solar_energy!=0 else 0):.0f}% from total solar energy)")
 
     if(not simulation_parameters.hideresults):
-        print("# Visualizing results...")
-        plt.figure(figsize=(10, 6))
-
-        solarProduction.visualize(plt)
-        #forecast.visualizeGauss(plt,simulationdate)
-        forecast.visualizeSin2(plt,simulationdate)
-
-        time_vector: datetime = generate_time_vector(simulationdate)
-        
-        plt.step(time_vector, powerUsage, where='post', marker='', linestyle='-', color='black', label="total consumed power")
-        plt.step(time_vector, overchargePower, where='post', marker='', linestyle='-', color='lime', label="overcharge power")
-        plt.step(time_vector,[max(solarProduction.production[i]-powerUsage[i],0) for i in range(len(powerUsage))], where='post', label="remaining solar power")
-        plt.step(time_vector,[max(-(solarProduction.production[i]-powerUsage[i]),0) for i in range(len(powerUsage))], color='r', where='post', label="power drawn from grid")
-
-        plt.title('Solar forecast and BEV consumption - {}kWp'.format(simulation_parameters.peakSolarPower/1000), fontsize=16)
-        plt.xlabel('Time (CEST)', fontsize=12)
-        plt.ylabel('Power (W)', fontsize=12)
-        plt.grid(True)
-        plt.xticks(rotation=45)
-    	
-        if(len(consumers)>0):
-            ax = plt.gca()
-            consumerPlot: ConsumerPlot = ConsumerPlot(consumers)
-            consumerPlot.visualize(ax)
-
-            consumers_sorted_starting: List[Consumer] = Consumer.sort_consumers_by_start_time(consumers)
-            consumers_sorted_ending: List[Consumer] = Consumer.sort_consumers_by_end_time(consumers)
-
-            last_consumer = consumers_sorted_ending[-1]
-            endtime = last_consumer.power.interval.time_end if last_consumer.overpower.interval is None else last_consumer.overpower.interval.time_end
-            plt.xlim(consumers_sorted_starting[0].power.interval.time_start-timedelta(minutes=30),endtime+timedelta(minutes=30))
-            plt.ylim((0,max(forecast.getDailyPeak(simulationdate),max(powerUsage))*1.15))
-        plt.legend(loc="upper left")
-        plt.tight_layout() 
-        plt.show()
+        visualize_results(consumers,solarProduction,forecast,simulation_parameters,powerUsage,overchargePower)
 
 def overcharge(simulation_parameters: SimulationParameters, vehicles: List[Vehicle], consumers: List[Consumer]):
     simulationdate = simulation_parameters.simulationdate
@@ -231,26 +236,36 @@ def overcharge(simulation_parameters: SimulationParameters, vehicles: List[Vehic
 
     return vehicles,consumers
 
+def argument_parser(parser):
+    parser.add_argument('-e', '--storepath', type=str, help="Path for simulation *.json savefile.")
+    parser.add_argument('-t', '--testdatapath', type=str, help="Path for testdata *.json file.")
+    parser.add_argument('-r', '--resultpath', type=str, help="Path for *.csv file if result export is enabled.")
+    parser.add_argument('-x', '--exportresults', action='store_true', help="Exports scheduling results to *.csv file.")
+    parser.add_argument('-v', '--hideresults', action='store_true', help="Do not show plot after simulation run.")
+    parser.add_argument('-d', '--simulationdate', type=str, help="Set the date for the simulation. e.g.: 2025-01-30")
+    parser.add_argument('-p', '--peaksolarpower', type=float, help="The peak solar power in Watts for the simulated power plant.")
+    parser.add_argument('-f', '--peakpowerforecast', type=float, help="The scaling factor for the forcast.")
+    parser.add_argument('-o', '--smoothforecast', type=str, help="Linearize data points from forecast.")
+    parser.add_argument('-a', '--forecastapi', type=str, help="Forecast API url.")
+    
+    parser.add_argument('-b', '--flatten', type=str, help="Flatten the power draw at the end to fit the descending solar generation.")
+    parser.add_argument('-c', '--overcharge', type=str, help="Allow charging more power than requested.")
+    parser.add_argument('-m', '--reducemax', type=str, help="Reduce the maximum power draw to optimize the scheduling.")
+    parser.add_argument('-g', '--allowgrid', type=str, help="Allow drawing power from the grid at the beginning of the charging process to optimize the scheduling.")
 
-def parse(parser):
+    return parser
+
+def parse(parser, op=False):
     parser = argparse.ArgumentParser(
-                    prog='Simulate Charging Station Management',
+                    prog='simulation',
                     description='')
-    parser.add_argument('operation', type=str)
-    parser.add_argument('-e', '--storepath', type=str)
-    parser.add_argument('-t', '--testdatapath', type=str)
-    parser.add_argument('-r', '--resultpath', type=str)
-    parser.add_argument('-x', '--exportresults', action='store_true')
-    parser.add_argument('-v', '--hideresults', action='store_true')
-    parser.add_argument('-d', '--simulationdate', type=str)
-    parser.add_argument('-p', '--peaksolarpower', type=float)
-    parser.add_argument('-f', '--peakpowerforecast', type=float)
-    parser.add_argument('-o', '--smoothforecast', type=str, default='true')
-    parser.add_argument('-a', '--forecastapi', type=str)
-    parser.add_argument('-s', '--scheduling', type=str)
-    args = parser.parse_args()
+    parser = argument_parser(parser)
 
-    operation = args.operation
+    if(op):
+        parser.add_argument('operation', help='Available operations: create, add, schedule, overcharge, visualize')
+        parser.add_argument('--vehicle', type=str, help="Add vehicle to simulation. Format: \"id_user,time_arrive,time_leave,percent_arrive,percent_leave,battery_size,charge_max\"")
+
+    args = parser.parse_args()
 
     simulation_parameters = SimulationParameters()
     if args.storepath is not None:
@@ -280,18 +295,33 @@ def parse(parser):
         simulation_parameters.smoothForecast = args.smoothforecast.lower() == 'true'
     if args.forecastapi is not None:
         simulation_parameters.forecastapi = args.forecastapi
-    if args.scheduling is not None:
-        scheduling_parameters = SchedulingParameters()
-        scheduling_parameters.parseSchedulingParameters(args.scheduling)
-        simulation_parameters.scheduling = scheduling_parameters
+    
+    scheduling_parameters = SchedulingParameters()
+    if args.flatten is not None:
+        scheduling_parameters.flatten = args.flatten.lower() == 'true'
+    if args.overcharge is not None:
+        scheduling_parameters.overcharge = args.overcharge.lower() == 'true'
+    if args.reducemax is not None:
+        scheduling_parameters.reducemax = args.reducemax.lower() == 'true'
+    if args.allowgrid is not None:
+        scheduling_parameters.allowgrid = args.allowgrid.lower() == 'true'
 
-    return operation, simulation_parameters
+    simulation_parameters.scheduling = scheduling_parameters
+
+    if(op):
+        vehicle=None
+        if args.vehicle is not None:
+            vehicle=str(args.vehicle)
+        operation = args.operation
+        return operation, vehicle, simulation_parameters
+    
+    return simulation_parameters
     
 if __name__ == "__main__":
     p = argparse.ArgumentParser(
-                prog='Simulate Charging Station Management',
+                prog='simulation',
                 description='')
-    operation, simulation_parameters = parse(p)
+    operation, vehicle, simulation_parameters = parse(p,op=True)
 
     try:
         simulation_parameters, vehicles, consumers = load_json(filename=simulation_parameters.storepath)
@@ -303,7 +333,7 @@ if __name__ == "__main__":
     if operation == "create":
         vehicles, consumers = create(simulation_parameters)
     elif operation == "add":
-        vehicles = add(simulation_parameters,vehicles)
+        vehicles = add(simulation_parameters,vehicles,vehicle)
     elif operation == "schedule":
         vehicles, consumers = schedule(simulation_parameters,vehicles,consumers)
     elif operation == "visualize":

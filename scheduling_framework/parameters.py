@@ -4,30 +4,20 @@ class SchedulingParameters:
     def __init__(self,
                  flatten = False,
                  overcharge = True,
-                 reducemax = True
+                 reducemax = True,
+                 allowgrid = False
                 ):
         self.flatten=flatten
         self.overcharge=overcharge
         self.reducemax=reducemax
-
-    def parseSchedulingParameters(self, string: str):
-        parameter_strings = string.split(",")
-        for string in parameter_strings:
-            keyval = string.split("=")
-            key = keyval[0]
-            val = keyval[1]
-            if(key=='flatten'):
-                self.flatten = val.lower() == 'true'
-            elif(key=='overcharge'):
-                self.overcharge = val.lower() == 'true'
-            elif(key=='reducemax'):
-                self.reducemax = val.lower() == 'true'
+        self.allowgrid=allowgrid
 
     def to_dict(self):
         return {
             "flatten": self.flatten,
             "overcharge": self.overcharge,
-            "reducemax": self.reducemax
+            "reducemax": self.reducemax,
+            "allowgrid": self.allowgrid
         }
     
     @staticmethod
@@ -40,14 +30,14 @@ class SchedulingParameters:
 
 class SimulationParameters:
     def __init__(self,
-                 storepath = 'test\\simulation.json',
-                 testdatapath = 'test\\testdata.json',
-                 resultpath = 'results\\result.csv',
+                 storepath = 'test/simulation.json',
+                 testdatapath = 'test/testdata.json',
+                 resultpath = 'results/result.csv',
                  exportresults = False,
                  hideresults = False,
                  simulationdate = datetime.now() + timedelta(days=1),
                  peakSolarPower = 300_000, # 300 kWp
-                 peakPowerForecast = 4_196_000_000, # 4196 MW Spitzenwert im Jahr 2024 (juni) / energy-charts.info
+                 peakPowerForecast = 4_196_000_000, # 4196 MW peak in June 2024 / energy-charts.info
                  smoothForecast = True,
                  forecastapi = "https://api.energy-charts.info/public_power_forecast?country=at&production_type=solar&forecast_type=current",
                  scheduling = SchedulingParameters()

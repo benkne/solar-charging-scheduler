@@ -1,6 +1,7 @@
 import requests
 from datetime import datetime
-from forecast_power import Datapoint,Forecast
+
+from scheduling_framework.forecast_power import Datapoint,Forecast
 
 def api_request(url) -> Forecast:
 

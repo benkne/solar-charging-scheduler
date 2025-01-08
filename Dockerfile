@@ -2,7 +2,7 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-COPY . .
+COPY requirements.txt .
 
 RUN apt-get update && apt-get install -y \
     build-essential \
@@ -13,10 +13,12 @@ RUN apt-get update && apt-get install -y \
     libjpeg-dev \
     && rm -rf /var/lib/apt/lists/*
 
-
 RUN pip install --no-cache-dir --upgrade pip setuptools wheel
-RUN pip install -r requirements.txt
 
-ENV PYTHONPATH=/app
+RUN pip install --no-cache-dir -r requirements.txt
 
-CMD ["python", "main.py"]
+COPY . .
+
+VOLUME /app/results
+
+CMD ["/bin/bash"]

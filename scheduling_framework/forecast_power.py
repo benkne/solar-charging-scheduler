@@ -1,7 +1,7 @@
 import datetime
 import matplotlib.pyplot as plt
-from scipy.optimize import curve_fit
 import numpy as np
+from scipy.optimize import curve_fit
 from typing import List
 
 class Datapoint:

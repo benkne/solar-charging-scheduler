@@ -7,10 +7,11 @@ from datetime import datetime, timedelta
 
 class TestdataParameters:
     def __init__(self,
-                 filename='./testdata.json', 
+                 filename='./test/testdata.json', 
                  vehiclecount=10, 
                  socmaxdistribution=[(60,0.5),(18,0.2),(100,0.3)], 
                  socmeanarrival=0.4, 
+                 socvariance=0.04,
                  chargepowermax=[11,22,7], 
                  meanparkingtime=8, 
                  parkingtimeparameter=40,
@@ -20,6 +21,7 @@ class TestdataParameters:
         self.vehiclecount = vehiclecount
         self.socmaxdistribution = socmaxdistribution
         self.socmeanarrival = socmeanarrival
+        self.socvariance = socvariance
         self.chargepowermax = chargepowermax
 
         self.meanparkingtime = meanparkingtime
@@ -33,11 +35,13 @@ def generate_testdata(testdata_parameters: TestdataParameters = TestdataParamete
 
     socmaxdistribution=list(zip(*(testdata_parameters.socmaxdistribution)))
 
-    assert(1==sum(socmaxdistribution[1]))
+    if(not 1==sum(socmaxdistribution[1])):
+        print("Error: The sum of the SoC max distribution values must equal 1 (100%).")
+        exit()
 
     mean_parking_time = testdata_parameters.meanparkingtime  # Mean arrival time before departure in hours
     soc_mean = testdata_parameters.socmeanarrival # mean SoC on arrival
-    variance = 0.04 # beta distribution variance parameter
+    variance = testdata_parameters.socvariance # beta distribution variance parameter
 
     # calculate alpha and beta for the beta distribution
     a = soc_mean * ((soc_mean * (1 - soc_mean)) / variance - 1)
@@ -78,30 +82,36 @@ def generate_testdata(testdata_parameters: TestdataParameters = TestdataParamete
         })
 
 
-    with open(testdata_parameters.filename, "w") as f:
-        json.dump(bev_data, f, indent=4)
+    try:
+        with open(testdata_parameters.filename, "w") as f:
+            json.dump(bev_data, f, indent=4)
+    except Exception as e:
+        print(f"An error occurred when writing the results to the file: {e}")
+        exit()
+
+    print(f"Success! {len(bev_data)} BEVs have been written to file {testdata_parameters.filename}.")
 
 def main():
     parser = argparse.ArgumentParser(
-                    prog='Solar Charging Testdata Generator',
-                    description='Generates a json file containing vehicles with distributed arrival time, leave time, battery size, battery level (arrive and leave) and max. charging power.')
-    parser.add_argument('-f', '--file', type=str)
-    parser.add_argument('-c', '--count', type=int)
-    parser.add_argument('-s', '--socmaxdistribution', type=str)
-    parser.add_argument('-m', '--socmeanarrival', type=float)
-    parser.add_argument('-p', '--chargepowermax', type=str)
-    parser.add_argument('-t', '--meanparkingtime', type=float)
-    parser.add_argument('-k', '--parkingtimeparameter', type=float)
+                    prog='generate_testdata',
+                    description='Solar Charging BEV Testdata Generator: This program generates a JSON file containing test data for battery electric vehicles (BEVs). Each vehicle is assigned random attributes such as arrival time, departure time, battery size, state of charge (SoC) at arrival and departure, and maximum charging power.\n\
+                        A discrete probability distribution is used to assign the maximum state of charge (SoC) for vehicle batteries based on user-defined probabilities.\n\
+                        A Beta distribution is used to model the initial state of charge (SoC) of vehicles upon arrival. The mean and variance of the distribution are derived from the specified socmeanarrival parameter and socvariance parameter.\n\
+                        Parking Duration: The time between vehicle arrival and departure is modeled using an Erlang distribution. The shape parameter (k) and the mean parking time are specified by the parameters meanparkingtime and parkingtimeparameter.\n\
+                        A random variation of up to ±90 minutes is added to a baseline departure time of 17:00 to simulate realistic scheduling.\n\
+                        The maximum allowed charging power is randomly selected from a list of power levels.',
+                    epilog='The generated data is useful for realistic testing of solar charging algorithms, load balancing, and energy management systems.')
+    
+    parser.add_argument('-f', '--file', type=str, help="The file path for writing the results. The specified file will be overwritten. Default: ./testdata.json")
+    parser.add_argument('-c', '--count', type=int, help="Number of vehicles to generate. Default: 10")
+    parser.add_argument('-s', '--socmaxdistribution', type=str, help="Define the destribution for SoC_max as comma seperated tuples (SoC_max (kWh),probability) e.g.: \"(60,0.5),(18,0.2),(100,0.3)\"")
+    parser.add_argument('-m', '--socmeanarrival', type=float, help="The mean SoC on arrival. e.g.: 0.4 (40%% of SoC_max)")
+    parser.add_argument('-v', '--socvariance', type=float, help="The variance for the Beta distributed SoC on arrival. Default: 0.04")
+    parser.add_argument('-p', '--chargepowermax', type=str, help="List of maximum charging powers in kW. e.g.: [11,22,7]")
+    parser.add_argument('-t', '--meanparkingtime', type=float, help="The mean time from arrival to leave in hours. Default: 8")
+    parser.add_argument('-k', '--parkingtimeparameter', type=float, help="Parameter k for the Erlang distributed parking time. Default: 40")
     parser.add_argument('--seed', type=int)
     args = parser.parse_args()
-
-    socmaxdistribution = 0
-    if(args.socmaxdistribution!=None):
-        try:
-            socmaxdistribution = list(eval(args.socmaxdistribution))
-        except:
-            print("Error: Failed to parse SoC distribution.")
-            exit()
     
     testdata_parameters = TestdataParameters()
     if args.file is not None:
@@ -109,17 +119,26 @@ def main():
     if args.count is not None:
         testdata_parameters.vehiclecount = args.count
     if args.socmaxdistribution is not None:
+        socmaxdistribution = 0
+        try:
+            socmaxdistribution = list(eval(args.socmaxdistribution))
+        except:
+            print("Error: Failed to parse SoC distribution.")
+            exit()
         testdata_parameters.socmaxdistribution = socmaxdistribution
     if args.socmeanarrival is not None:
         testdata_parameters.socmeanarrival = args.socmeanarrival
+    if args.socvariance is not None:
+        testdata_parameters.socvariance = args.socvariance
     if args.chargepowermax is not None:
         testdata_parameters.chargepowermax = args.chargepowermax
     if args.meanparkingtime is not None:
         testdata_parameters.meanparkingtime = args.meanparkingtime
-    if args.seed is not None:
-        testdata_parameters.seed = args.seed
     if args.parkingtimeparameter is not None:
         testdata_parameters.parkingtimeparameter = args.parkingtimeparameter
+    if args.seed is not None:
+        testdata_parameters.seed = args.seed
+
     generate_testdata(testdata_parameters)
 if __name__ == "__main__":
     main()

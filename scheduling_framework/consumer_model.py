@@ -1,8 +1,9 @@
-from datetime import datetime, timedelta
-from typing import List
 import random
 import matplotlib.patches as patches
-from vehicle import Vehicle
+from datetime import datetime, timedelta
+from typing import List
+
+from scheduling_framework.vehicle import Vehicle
 
 class TimeInterval:
     def __init__(self, time_start: datetime, time_end: datetime) -> None:

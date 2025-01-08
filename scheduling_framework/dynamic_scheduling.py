@@ -1,12 +1,11 @@
+import numpy as np
 from typing import List, Tuple
 from datetime import datetime, timedelta
 
-from vehicle import Vehicle
-from consumer_model import TimeInterval, PowerCurve, Consumer
-from renewable_production import Production
-from parameters import SchedulingParameters
-
-import numpy as np
+from scheduling_framework.vehicle import Vehicle
+from scheduling_framework.consumer_model import TimeInterval, PowerCurve, Consumer
+from scheduling_framework.renewable_production import Production
+from scheduling_framework.parameters import SchedulingParameters
 
 def vehiclepower(v: Vehicle, startTime: datetime, t: datetime) -> int: # returns the power from vehicle v during time t when the charging starts at time startTime
     if startTime <= t < startTime + timedelta(minutes=v.charge_duration):
@@ -14,10 +13,7 @@ def vehiclepower(v: Vehicle, startTime: datetime, t: datetime) -> int: # returns
     return 0
     
 def no_strategy(scheduling_parameters: SchedulingParameters, vehicles: List[Vehicle], timestamp: datetime, production: List[float]) -> Tuple[List[Consumer], List[float]]:
-    powerUsage = [0.0]*24*60
     consumers = []
-
-    simulationdate = datetime(timestamp.year,timestamp.month,timestamp.day)
 
     for v in vehicles:
         interval: TimeInterval = TimeInterval(v.time_arrive,v.time_arrive+timedelta(minutes=v.energy_required/v.charge_max*60))
@@ -25,11 +21,9 @@ def no_strategy(scheduling_parameters: SchedulingParameters, vehicles: List[Vehi
         consumer: Consumer = Consumer(v.id_user,powercurve)
         consumers.append(consumer)
 
-        for i in range(0,len(powercurve.power)):
-            powerUsage[i+int((interval.time_start-simulationdate).total_seconds()/60)]+=powercurve.power[i]
         print("Added "+str(consumer.id_user)+" with starting time "+str(consumer.power.interval.time_start))
 
-    return consumers,powerUsage
+    return consumers
 
 def dynamic_scheduling(scheduling_parameters: SchedulingParameters, vehicles: List[Vehicle], timestamp: datetime, production: List[float]) -> Tuple[List[Consumer], List[float]]:
     vehicles = Vehicle.sort_vehicles_by_energy(vehicles)
@@ -94,9 +88,10 @@ def dynamic_scheduling(scheduling_parameters: SchedulingParameters, vehicles: Li
                     gridEnergyUsed = gridEnergyUsed - solarAvailable/60
                 
                 chargeTime += timedelta(minutes=1)
-
-            if gridEnergyUsed <= 1000:    # allow 1 kWh energy from grid per vehicle
-                gridEnergyUsed=0
+            
+            if(scheduling_parameters.allowgrid):
+                if gridEnergyUsed <= 1000:    # allow 1 kWh energy from grid per vehicle
+                    gridEnergyUsed=0
 
             if gridEnergyUsed < leastGridEnergy: 
                 leastGridEnergy = gridEnergyUsed
@@ -110,9 +105,6 @@ def dynamic_scheduling(scheduling_parameters: SchedulingParameters, vehicles: Li
             index = int((chargeTime-simulationdate).total_seconds()/60)
             powerUsage[index] = powerUsage[index] + stationpower[int((chargeTime-bestStartTime).total_seconds()/60)]
             chargeTime += timedelta(minutes=1)
-
-        if(scheduling_parameters.overcharge):
-            print("Overcharging vehicle if possible.")
 
         interval: TimeInterval = TimeInterval(bestStartTime,bestStartTime+timedelta(minutes=minduration))
         powercurve: PowerCurve = PowerCurve(stationpower,interval)
