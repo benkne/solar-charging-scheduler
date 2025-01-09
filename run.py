@@ -29,12 +29,6 @@ def read_testdata_json(file_path: str) -> Optional[List[dict]]:
         print(f"Error decoding JSON from {file_path}.")
         exit()
 
-def csv_write(file_path: str, data) -> None:
-    with open(file_path, mode="a", newline="", encoding="utf-8") as file:
-        writer = csv.writer(file)
-        writer.writerow(data)
-    print(f"Results written to {file_path}.")
-
 # ---------------- simulation ---------------- #
 
 def simulate(simulation_parameters: SimulationParameters):
@@ -158,11 +152,11 @@ def simulate(simulation_parameters: SimulationParameters):
     if(simulation_parameters.exportresults):
         if(not os.path.exists(simulation_parameters.resultpath)):
             try:
-                csv_write(simulation_parameters.resultpath, exportdata.keys())
+                simulation.csv_write(simulation_parameters.resultpath, exportdata.keys())
             except:
                 print(f"Error: Failed to write data to file {simulation_parameters.resultpath}.")
         try:
-            csv_write(simulation_parameters.resultpath, exportdata.values())
+            simulation.csv_write(simulation_parameters.resultpath, exportdata.values())
         except:
             print(f"Error: Failed to write data to file {simulation_parameters.resultpath}.")
 

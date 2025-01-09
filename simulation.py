@@ -2,6 +2,8 @@ import argparse
 import json
 import numpy as np
 import matplotlib.pyplot as plt
+import csv
+import os
 from datetime import timedelta, datetime
 from typing import List
 
@@ -12,6 +14,12 @@ from scheduling_framework.renewable_production import Production
 from scheduling_framework.consumer_model import Consumer, ConsumerPlot
 from scheduling_framework.dynamic_scheduling import SchedulingParameters, dynamic_scheduling, no_strategy, overcharge_scheduling
 from scheduling_framework.parameters import SimulationParameters
+
+def csv_write(file_path: str, data) -> None:
+    with open(file_path, mode="a", newline="", encoding="utf-8") as file:
+        writer = csv.writer(file)
+        writer.writerow(data)
+    print(f"Results written to {file_path}.")
     
 def generate_json(filename: str, simulation_parameters: SimulationParameters, vehicles: List[Vehicle], consumers: List[Consumer]):
     dict_data = {"simulation_parameters": simulation_parameters.to_dict(),
@@ -54,7 +62,6 @@ def overcharge_power(simulationdate: datetime, consumers: List[Consumer]):
         if c.overpower.interval is not None:
             power_start_index =int((c.overpower.interval.time_start.timestamp()-simulationdate.timestamp())/60)
             overchargePower = np.add(overchargePower,[0]*(power_start_index)+c.overpower.power+[0]*(24*60-power_start_index-len(c.overpower.power)))
-
     return overchargePower
 
 def visualize_results(consumers: List[Consumer], solarProduction: Production, forecast: Forecast, simulation_parameters: SimulationParameters, powerUsage: List[float], overchargePower: List[float]):
@@ -180,7 +187,7 @@ def schedule(simulation_parameters: SimulationParameters, vehicles: List[Vehicle
 
         powerUsage = total_power_usage(simulationdate, consumers)
 
-    return allvehicles, consumers
+    return len(schedule_vehicles), allvehicles, consumers
 
 def visualize(simulation_parameters: SimulationParameters, vehicles: List[Vehicle], consumers: List[Consumer]):
     simulationdate = simulation_parameters.simulationdate
@@ -255,7 +262,7 @@ def argument_parser(parser):
 
     return parser
 
-def parse(parser, op=False):
+def parse(parser, simulation_parameters=SimulationParameters(), op=False):
     parser = argparse.ArgumentParser(
                     prog='simulation',
                     description='')
@@ -323,21 +330,70 @@ if __name__ == "__main__":
                 description='')
     operation, vehicle, simulation_parameters = parse(p,op=True)
 
-    try:
-        simulation_parameters, vehicles, consumers = load_json(filename=simulation_parameters.storepath)
-    except:
-        if(operation!="create"):
+    if(operation!="create"):
+        try:
+            simulation_parameters, vehicles, consumers = load_json(filename=simulation_parameters.storepath)
+        except:
             print("Error: Can not read simulation file!")
             exit()
 
+    number_scheduled = 0
     if operation == "create":
         vehicles, consumers = create(simulation_parameters)
     elif operation == "add":
         vehicles = add(simulation_parameters,vehicles,vehicle)
     elif operation == "schedule":
-        vehicles, consumers = schedule(simulation_parameters,vehicles,consumers)
+        number_scheduled, vehicles, consumers = schedule(simulation_parameters,vehicles,consumers)
     elif operation == "visualize":
         visualize(simulation_parameters,vehicles,consumers)
     elif operation == "overcharge":
         vehicles, consumers = overcharge(simulation_parameters,vehicles,consumers)
+
     generate_json(simulation_parameters.storepath, simulation_parameters, vehicles, consumers)
+
+    if(simulation_parameters.exportresults):
+        exportdata= {
+            "simulationdate" : None,
+            "peakSolarPower" : None,
+            "totalVehicles" : None,
+            "scheduledVehicles" : None,
+            "requiredEnergy" : None,
+            "solarEnergy" : None,
+            "consumedEnergy" : None,
+            "gridEnergy" : None,
+            "solarUnused" : None
+        }
+
+        required_energy = sum([v.energy_required for v in vehicles])
+
+        forecast: Forecast = energy_charts_api.api_request(simulation_parameters.forecastapi)
+        forecast.scale(simulation_parameters.peakSolarPower, simulation_parameters.peakPowerForecast)
+        solarProduction = Production(forecast, simulation_parameters.simulationdate, smooth=simulation_parameters.smoothForecast) 
+        solar_energy = (solarProduction.getEnergy()/1000)
+
+        exportdata["simulationdate"] = simulation_parameters.simulationdate
+        exportdata["peakSolarPower"] = simulation_parameters.peakSolarPower
+        exportdata["totalVehicles"] = len(vehicles)
+        exportdata["scheduledVehicles"] = number_scheduled
+        exportdata["requiredEnergy"] = required_energy*1000
+        exportdata["solarEnergy"] = solar_energy*1000
+
+        powerUsage = total_power_usage(simulation_parameters.simulationdate, consumers)
+
+        total_consumed_energy =(sum(powerUsage)/60/1000)
+        grid_energy = (sum([max(-(solarProduction.production[i]-powerUsage[i]),0) for i in range(len(powerUsage))])/60/1000)
+        unused_solar_energy = (sum([max(solarProduction.production[i]-powerUsage[i],0) for i in range(len(powerUsage))])/60/1000)
+
+        exportdata["consumedEnergy"] = total_consumed_energy*1000
+        exportdata["gridEnergy"] = grid_energy*1000
+        exportdata["solarUnused"] = unused_solar_energy*1000
+
+        if(not os.path.exists(simulation_parameters.resultpath)):
+            try:
+                csv_write(simulation_parameters.resultpath, exportdata.keys())
+            except:
+                print(f"Error: Failed to write data to file {simulation_parameters.resultpath}.")
+        try:
+            csv_write(simulation_parameters.resultpath, exportdata.values())
+        except:
+            print(f"Error: Failed to write data to file {simulation_parameters.resultpath}.")
