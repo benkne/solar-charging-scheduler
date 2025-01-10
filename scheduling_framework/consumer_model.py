@@ -39,8 +39,6 @@ class TimeInterval:
         time_end = datetime.fromtimestamp(data["time_end"])
         return TimeInterval(time_start, time_end)
     
-
-    
 class PowerCurve:
     def __init__(self, power: list[float], interval: TimeInterval) -> None:
         self.power: list[float] = power
@@ -72,8 +70,6 @@ class PowerCurve:
             power=data["power"],
             interval=interval
         )
-    
-
     
 class Consumer:
     def __init__(self, id_user: str, power: PowerCurve, overpower: PowerCurve = PowerCurve([],None)):
@@ -136,7 +132,7 @@ class Consumer:
                     requirement_missed.append(consumer.id_user)
             print("------------------------")
         if(len(requirement_missed)==0):
-            print("All vehicles were charged successfully.")
+            print("All vehicles are charged successfully.")
         else:
             print(f"Required SoC missed for vehicles: {requirement_missed}")    
 
@@ -166,8 +162,6 @@ class Consumer:
     def consumers_from_dict(data: List[dict]) -> List["Consumer"]:
         return [Consumer.from_dict(consumer_data) for consumer_data in data]
 
-
-
 class Segment:
     def __init__(self, id_user: str, interval: TimeInterval, power: float, basePower: float):
         self.id_user = id_user
@@ -179,8 +173,6 @@ class Segment:
         if(self.interval.timeInInterval(timestep)):
             return self.power
         return 0
-
-
 
 class ConsumerPlot:
     consumerSegments: List[Segment] = []

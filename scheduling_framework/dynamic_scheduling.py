@@ -40,6 +40,20 @@ def dynamic_scheduling(scheduling_parameters: SchedulingParameters, vehicles: Li
         parkduration = int((v.time_leave-v.time_arrive).total_seconds()/60)
         stationpower: List[float] = []
 
+        required_energy = (v.percent_leave-v.percent_arrive)/100*v.battery_size # in kWh
+        parking_time = int((v.time_leave-v.time_arrive).total_seconds())/60 # in minutes
+
+        max_possible_energy = parking_time/60*v.charge_max
+        if(max_possible_energy<required_energy): # check if the desired SoC can possibly be reached bevore leaving
+            percent_leave_old = v.percent_leave
+            percent_leave = max_possible_energy*100/v.battery_size+v.percent_arrive # recalculate SoC_leave so that the vehicle can be charged within parking time
+            print(f"Warning: Vehicle with ID {v.id_user} cannot be charged {required_energy:.2f} kWh ({int(percent_leave_old)}%) within {int(parking_time)} minutes. At most {max_possible_energy:.2f} kWh ({int(percent_leave)}%) are possible.")
+            v.percent_leave=percent_leave
+            required_energy = (v.percent_leave-v.percent_arrive)/100*v.battery_size # in kWh
+            v.energy_required = required_energy
+            v.charge_duration= int(v.energy_required/v.charge_max*60)
+            minduration = v.charge_duration
+
         if(scheduling_parameters.reducemax):
         # reduce max power if possible
             if(maxstationpower>20 and minduration<30 and parkduration>4*minduration):
@@ -128,6 +142,7 @@ def overcharge_scheduling(consumers: List[Consumer], vehicles: List[Vehicle], so
             c.overpower.interval = None
             overpower_consumers.append(c)
 
+    number_scheduled=0
     for c in overpower_consumers:
         id_user: str = c.id_user
         v: Vehicle = next(filter(lambda v: v.id_user == id_user, vehicles))
@@ -178,6 +193,7 @@ def overcharge_scheduling(consumers: List[Consumer], vehicles: List[Vehicle], so
 
             overpower_consumers_.append(Consumer(c.id_user, c.power, PowerCurve(overcharge_power,overcharge_interval)))
             print(f"Overcharging: {c.id_user}: energy: {PowerCurve(overcharge_power,overcharge_interval).getEnergy()/1000:.2f} kWh")
+            number_scheduled+=1
 
     # return all consumers
     for c in consumers:
@@ -187,4 +203,4 @@ def overcharge_scheduling(consumers: List[Consumer], vehicles: List[Vehicle], so
                 overpower_start_index = int((c.overpower.interval.time_start.timestamp()-simulationdate.timestamp())/60)
                 total_overcharge_power = np.add(total_overcharge_power,[0]*(overpower_start_index)+c.overpower.power+[0]*(24*60-overpower_start_index-len(c.overpower.power)))
                 print(f"Overcharging: {c.id_user}: energy: {c.overpower.getEnergy()/1000:.2f} kWh")
-    return overpower_consumers_, total_overcharge_power
+    return number_scheduled,overpower_consumers_, total_overcharge_power

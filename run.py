@@ -1,6 +1,5 @@
 import os
 import json
-import csv
 import numpy as np
 import argparse
 from datetime import datetime
@@ -129,7 +128,7 @@ def simulate(simulation_parameters: SimulationParameters):
 
             ##### overcharging logic #####
             if(simulation_parameters.scheduling.overcharge):
-                consumers, overchargePower = overcharge_scheduling(consumers,vehicles,solarProduction,powerUsage,t)
+                number_scheduled, consumers, overchargePower = overcharge_scheduling(consumers,vehicles,solarProduction,powerUsage,t)
 
             powerUsage = list(np.add(powerUsage,overchargePower))
 
@@ -167,7 +166,7 @@ def simulate(simulation_parameters: SimulationParameters):
     
 if __name__ == "__main__":
     p = argparse.ArgumentParser(
-                    prog='run',
-                    description='')
+                    prog='run.py',
+                    description='This program allows the consecutive simulation of the scheduling process. By running this program, all vehicles specified in the testdata.json file are scheduled after arriving, and eventually rescheduled when other vehicles arrive. The simulation outputs all relevant actions to the command line, exports the results to a *.csv file and opens the scheduling plot at the end.')
     simulation_parameters = simulation.parse(p)
     simulate(simulation_parameters)

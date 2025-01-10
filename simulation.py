@@ -15,6 +15,8 @@ from scheduling_framework.consumer_model import Consumer, ConsumerPlot
 from scheduling_framework.dynamic_scheduling import SchedulingParameters, dynamic_scheduling, no_strategy, overcharge_scheduling
 from scheduling_framework.parameters import SimulationParameters
 
+# ---------------- functions ---------------- #
+
 def csv_write(file_path: str, data) -> None:
     with open(file_path, mode="a", newline="", encoding="utf-8") as file:
         writer = csv.writer(file)
@@ -211,8 +213,8 @@ def visualize(simulation_parameters: SimulationParameters, vehicles: List[Vehicl
     Consumer.printAllStats(vehicles,consumers)
 
     powerUsage = total_power_usage(simulationdate, consumers)
-    powerUsage = np.add(powerUsage,overcharge_power(simulationdate,consumers))
     overchargePower = overcharge_power(simulationdate,consumers)
+    powerUsage = np.add(powerUsage,overchargePower)
 
     total_consumed_energy =(sum(powerUsage)/60/1000)
     grid_energy = (sum([max(-(solarProduction.production[i]-powerUsage[i]),0) for i in range(len(powerUsage))])/60/1000) if powerUsage is not None else 0
@@ -229,7 +231,9 @@ def overcharge(simulation_parameters: SimulationParameters, vehicles: List[Vehic
     simulationdate = simulation_parameters.simulationdate
 
     vehicles = Vehicle.sort_vehicles_by_arrive_time(vehicles)
-    t = vehicles[-1].time_arrive
+    t=simulation_parameters.simulationdate
+    if(len(vehicles)>0):
+        t = vehicles[-1].time_arrive
 
     print("# Making forecast API request...")
     forecast: Forecast = energy_charts_api.api_request(simulation_parameters.forecastapi)
@@ -238,10 +242,13 @@ def overcharge(simulation_parameters: SimulationParameters, vehicles: List[Vehic
 
     powerUsage = total_power_usage(simulation_parameters.simulationdate, consumers)
     ##### overcharging logic #####
+    number_scheduled=0
     if(simulation_parameters.scheduling.overcharge):
-        consumers, overchargePower = overcharge_scheduling(consumers,vehicles,solarProduction,powerUsage,t)
+        number_scheduled, consumers, overchargePower = overcharge_scheduling(consumers,vehicles,solarProduction,powerUsage,t)
 
-    return vehicles,consumers
+    return number_scheduled,vehicles,consumers
+
+# ---------------- parsing ---------------- #
 
 def argument_parser(parser):
     parser.add_argument('-e', '--storepath', type=str, help="Path for simulation *.json savefile.")
@@ -262,10 +269,7 @@ def argument_parser(parser):
 
     return parser
 
-def parse(parser, simulation_parameters=SimulationParameters(), op=False):
-    parser = argparse.ArgumentParser(
-                    prog='simulation',
-                    description='')
+def parse(parser, op=False):
     parser = argument_parser(parser)
 
     if(op):
@@ -294,6 +298,7 @@ def parse(parser, simulation_parameters=SimulationParameters(), op=False):
             datetime_format = "%Y-%m-%d"
             datetime_object = datetime.strptime(args.simulationdate, datetime_format)
         simulation_parameters.simulationdate = datetime(datetime_object.year,datetime_object.month,datetime_object.day)
+        simulation_parameters.update_forecastapi()
     if args.peaksolarpower is not None:
         simulation_parameters.peakSolarPower = args.peaksolarpower
     if args.peakpowerforecast is not None:
@@ -326,8 +331,13 @@ def parse(parser, simulation_parameters=SimulationParameters(), op=False):
     
 if __name__ == "__main__":
     p = argparse.ArgumentParser(
-                prog='simulation',
-                description='')
+                prog='simulation.py',
+                description='This program allows the iterative simulation of the scheduling process. The different operations are: create, add, schedule, overcharge and visualize.\n\
+                            create: creates a new simulation file with the set simulation parameters.\n\
+                            add: add new vehicle to simulation using --vehicle\n\
+                            schedule: (re)schedule all vehicles\n\
+                            overcharge: if possible, charge vehicles more than required\n\
+                            visualize: show stats and open plot of scheduling overwiew')
     operation, vehicle, simulation_parameters = parse(p,op=True)
 
     if(operation!="create"):
@@ -347,7 +357,7 @@ if __name__ == "__main__":
     elif operation == "visualize":
         visualize(simulation_parameters,vehicles,consumers)
     elif operation == "overcharge":
-        vehicles, consumers = overcharge(simulation_parameters,vehicles,consumers)
+        number_scheduled, vehicles, consumers = overcharge(simulation_parameters,vehicles,consumers)
 
     generate_json(simulation_parameters.storepath, simulation_parameters, vehicles, consumers)
 
@@ -379,6 +389,8 @@ if __name__ == "__main__":
         exportdata["solarEnergy"] = solar_energy*1000
 
         powerUsage = total_power_usage(simulation_parameters.simulationdate, consumers)
+        overchargePower = overcharge_power(simulation_parameters.simulationdate,consumers)
+        powerUsage = np.add(powerUsage,overchargePower)
 
         total_consumed_energy =(sum(powerUsage)/60/1000)
         grid_energy = (sum([max(-(solarProduction.production[i]-powerUsage[i]),0) for i in range(len(powerUsage))])/60/1000)

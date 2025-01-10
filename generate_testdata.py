@@ -63,11 +63,11 @@ def generate_testdata(testdata_parameters: TestdataParameters = TestdataParamete
         time_arrive = arrival_time.strftime("%H:%M")
         time_leave = departure_time.strftime("%H:%M")
 
-        percent_arrive = max(0, min(100, int(beta.rvs(a, b) * 100)))
+        percent_arrive = max(0, min(99, int(beta.rvs(a, b) * 100)))
         percent_leave = random.choice([60,70,80,90,100])
 
-        #if percent_leave<percent_arrive: # make sure that all vehicles will require charging
-        #    percent_leave=100
+        if percent_leave<percent_arrive: # make sure that all vehicles will require charging
+           percent_leave=100
 
         charge_power_max = random.choice(testdata_parameters.chargepowermax)
 
@@ -81,7 +81,6 @@ def generate_testdata(testdata_parameters: TestdataParameters = TestdataParamete
             "charge_max": charge_power_max
         })
 
-
     try:
         with open(testdata_parameters.filename, "w") as f:
             json.dump(bev_data, f, indent=4)
@@ -93,16 +92,15 @@ def generate_testdata(testdata_parameters: TestdataParameters = TestdataParamete
 
 def main():
     parser = argparse.ArgumentParser(
-                    prog='generate_testdata',
-                    description='Solar Charging BEV Testdata Generator: This program generates a JSON file containing test data for battery electric vehicles (BEVs). Each vehicle is assigned random attributes such as arrival time, departure time, battery size, state of charge (SoC) at arrival and departure, and maximum charging power.\n\
+                    prog='generate_testdata.py',
+                    description='The Solar Charging BEV Testdata Generator generates a JSON file containing test data for battery electric vehicles (BEVs). Each vehicle is assigned random attributes such as arrival time, departure time, battery size, state of charge (SoC) at arrival and departure, and maximum charging power.\n\
                         A discrete probability distribution is used to assign the maximum state of charge (SoC) for vehicle batteries based on user-defined probabilities.\n\
                         A Beta distribution is used to model the initial state of charge (SoC) of vehicles upon arrival. The mean and variance of the distribution are derived from the specified socmeanarrival parameter and socvariance parameter.\n\
                         Parking Duration: The time between vehicle arrival and departure is modeled using an Erlang distribution. The shape parameter (k) and the mean parking time are specified by the parameters meanparkingtime and parkingtimeparameter.\n\
                         A random variation of up to ±90 minutes is added to a baseline departure time of 17:00 to simulate realistic scheduling.\n\
-                        The maximum allowed charging power is randomly selected from a list of power levels.',
-                    epilog='The generated data is useful for realistic testing of solar charging algorithms, load balancing, and energy management systems.')
+                        The maximum allowed charging power is randomly selected from a list of power levels.')
     
-    parser.add_argument('-f', '--file', type=str, help="The file path for writing the results. The specified file will be overwritten. Default: ./testdata.json")
+    parser.add_argument('-f', '--file', type=str, help="The file path for writing the results. The specified file will be overwritten. Default: ./test/testdata.json")
     parser.add_argument('-c', '--count', type=int, help="Number of vehicles to generate. Default: 10")
     parser.add_argument('-s', '--socmaxdistribution', type=str, help="Define the destribution for SoC_max as comma seperated tuples (SoC_max (kWh),probability) e.g.: \"(60,0.5),(18,0.2),(100,0.3)\"")
     parser.add_argument('-m', '--socmeanarrival', type=float, help="The mean SoC on arrival. e.g.: 0.4 (40%% of SoC_max)")

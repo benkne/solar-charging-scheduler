@@ -39,7 +39,7 @@ class SimulationParameters:
                  peakSolarPower = 300_000, # 300 kWp
                  peakPowerForecast = 4_196_000_000, # 4196 MW peak in June 2024 / energy-charts.info
                  smoothForecast = True,
-                 forecastapi = "https://api.energy-charts.info/public_power_forecast?country=at&production_type=solar&forecast_type=current",
+                 forecastapi = None,
                  scheduling = SchedulingParameters()
                 ):
         self.storepath = storepath
@@ -53,6 +53,17 @@ class SimulationParameters:
         self.smoothForecast = smoothForecast
         self.forecastapi = forecastapi
         self.scheduling = scheduling
+
+        self.update_forecastapi()
+
+    def update_forecastapi(self):
+        begindate = self.simulationdate - timedelta(days=1)
+        enddate = self.simulationdate + timedelta(days=1)
+        day_string_begin=str(begindate.year)+"-"+str(begindate.month)+"-"+str(begindate.day)
+        day_string_begin=datetime.strptime(day_string_begin, "%Y-%m-%d").strftime("%Y-%m-%d")
+        day_string_end=str(enddate.year)+"-"+str(enddate.month)+"-"+str(enddate.day)
+        day_string_end=datetime.strptime(day_string_end, "%Y-%m-%d").strftime("%Y-%m-%d")
+        self.forecastapi = f"https://api.energy-charts.info/public_power_forecast?country=at&production_type=solar&forecast_type=current&start={day_string_begin}&end={day_string_end}"
 
     def to_dict(self):
         return {
