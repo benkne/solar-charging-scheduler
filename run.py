@@ -16,6 +16,7 @@ from scheduling_framework.dynamic_scheduling import dynamic_scheduling, no_strat
 
 # ---------------- functions ---------------- #
 
+# load vehicles from file
 def read_testdata_json(file_path: str) -> Optional[List[dict]]:
     try:
         with open(file_path, 'r') as file:
@@ -93,6 +94,8 @@ def simulate(simulation_parameters: SimulationParameters):
     overchargePower = [0.0]*24*60
 
     time_vector: datetime = generate_time_vector(simulationdate)
+
+    # iterate simulation for the simulationdate
     for t in time_vector:
         arriving_vehicles: List[Vehicle] = []
 

@@ -5,6 +5,7 @@ import argparse
 from scipy.stats import erlang, beta
 from datetime import datetime, timedelta
 
+# parameter definition for testdata generation
 class TestdataParameters:
     def __init__(self,
                  filename='./test/testdata.json', 
@@ -29,6 +30,7 @@ class TestdataParameters:
 
         self.seed = seed
 
+# generate the testdata based on the given parameters
 def generate_testdata(testdata_parameters: TestdataParameters = TestdataParameters()) -> None:
     random.seed(testdata_parameters.seed)
     np.random.seed(testdata_parameters.seed)

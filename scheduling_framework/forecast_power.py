@@ -4,6 +4,7 @@ import numpy as np
 from scipy.optimize import curve_fit
 from typing import List
 
+# define a timestamp-value pair for the forecast
 class Datapoint:
     def __init__(self, timestamp: datetime.datetime, forecast_value: float):
         self.timestamp: datetime.datetime = timestamp
@@ -11,6 +12,7 @@ class Datapoint:
     def __str__(self) -> str:
         return f"{self.timestamp}, {self.forecast_value}"
 
+# renewable production forecast, containing datapoints
 class Forecast:
     def __init__(self, datapoints: list[Datapoint]):
         self.datapoints = datapoints
@@ -18,11 +20,13 @@ class Forecast:
     def __str__(self) -> str:
         return "\n".join(str(datapoint) for datapoint in self.datapoints)
 
+    # visualize the renewable forecast
     def visualize(self, plt: plt):
         times = [datapoint.timestamp for datapoint in self.datapoints]
         forecast_values = [datapoint.forecast_value for datapoint in self.datapoints]
         plt.step(times, forecast_values, where='post', marker='', linestyle='-', color='y',linewidth=2.0,label="scaled solar power forecast")
 
+    # scales the forecast according to the scaling factor and the reference scale
     def scale(self, scaledpeak: float, austrianpeak: float):
         if scaledpeak<=0 or austrianpeak<=0:
             raise Exception("Scaling values must be greater than 0.")
@@ -42,6 +46,7 @@ class Forecast:
                     return current_point.forecast_value
         return 0
     
+    # returns a new forecast, capped to the specified date
     def getDailyForecast(self, datetime: datetime.datetime):
         datapoints = []
         date = datetime.date()
@@ -51,6 +56,7 @@ class Forecast:
 
         return Forecast(datapoints)
     
+    # returns the highest value of the specified date
     def getDailyPeak(self, datetime: datetime.datetime):
         date = datetime.date()
         peak=0
@@ -60,12 +66,15 @@ class Forecast:
                     peak = datapoint.forecast_value
         return peak
     
+    # returns the timestamps of all datapoints as list
     def getTimesteps(self) -> List[datetime.datetime]:
         return [d.timestamp for d in self.datapoints]
     
+    # returns all forecast values as list 
     def getValues(self) -> List[float]:
         return [d.forecast_value for d in self.datapoints]
     
+    # fit and visualize a gauss curve to the forecast graph using least squares
     def visualizeGauss(self, plt, simulationdate):
         guesstime = datetime.datetime(simulationdate.year,simulationdate.month,simulationdate.day,hour=12)
         gauss = lambda x,a,mu,sigma: a * np.exp(-(x - mu)**2 / (2 * sigma**2))
@@ -104,6 +113,7 @@ class Forecast:
 
         plt.plot([datetime.datetime.fromtimestamp(x) for x in x_values], y_values, marker='', linestyle='--', color='b',label="gauss fit of forecast")
 
+    # fit and visualize a sin^2 curve to the forecast graph using least squares
     def visualizeSin2(self, plt, simulationdate):
         guesstime = datetime.datetime(simulationdate.year,simulationdate.month,simulationdate.day,hour=12)
         sin2 = lambda x,a,b,c: a * np.sin(np.pi*(x-c-1/b/2)*b) * np.sin(np.pi*(x-c-1/b/2)*b)

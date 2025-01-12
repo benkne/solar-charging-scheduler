@@ -12,13 +12,6 @@ The **Solar Charging Scheduler** is a Python-based simulation framework designed
 - **Test Data Generation**: Generate realistic BEV datasets for simulations.
 - **API Integration**: Uses the `energy-charts.info` API for PV energy forecasts.
 
-## Future Enhancements
-
-- Grid power constraints integration.
-- Detailed modeling of charging power curves.
-- Support for other renewable energy sources and storage systems.
-- Improved user interfaces and reporting tools.
-
 ## Installation
 
 ### System Requirements
@@ -54,6 +47,11 @@ Run the framework either locally or by using Docker.
     docker run --name scheduler -ti -v $(pwd)/results:/app/results solar-charging-scheduler
     ```
 
+3. Restart after stopping the container
+    ```
+    docker start -ai scheduling_framework
+    ```
+
 ## Simulation
 
 ### Consecutive
@@ -72,3 +70,9 @@ python simulation.py schedule
 python simulation.py visualize
 ```
 
+## Future Enhancements
+
+- Grid power constraints integration.
+- Detailed modeling of charging power curves.
+- Support for other renewable energy sources and storage systems.
+- Improved user interfaces and reporting tools.

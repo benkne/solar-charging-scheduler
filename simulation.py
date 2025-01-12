@@ -17,12 +17,14 @@ from scheduling_framework.parameters import SimulationParameters
 
 # ---------------- functions ---------------- #
 
+# write generic data to csv file
 def csv_write(file_path: str, data) -> None:
     with open(file_path, mode="a", newline="", encoding="utf-8") as file:
         writer = csv.writer(file)
         writer.writerow(data)
     print(f"Results written to {file_path}.")
-    
+
+# generate json file containing all simulation information
 def generate_json(filename: str, simulation_parameters: SimulationParameters, vehicles: List[Vehicle], consumers: List[Consumer]):
     dict_data = {"simulation_parameters": simulation_parameters.to_dict(),
                  "vehicles": Vehicle.vehicles_to_dict(vehicles),
@@ -32,6 +34,7 @@ def generate_json(filename: str, simulation_parameters: SimulationParameters, ve
     with open(filename, 'w') as file:
         json.dump(dict_data, file, indent=4)
 
+# load the json file containing all simulation information
 def load_json(filename: str):
     with open(filename, "r") as file:
         data = json.load(file)
@@ -43,6 +46,7 @@ def load_json(filename: str):
         
         return simulation_parameters, vehicles, consumers
     
+# generate a one-minute step time vector for the duration of 1 day
 def generate_time_vector(date: datetime):
     vector = []
     time = date
@@ -51,6 +55,7 @@ def generate_time_vector(date: datetime):
         time=time+timedelta(minutes=1)
     return vector
 
+# return the total power usage of all consumers
 def total_power_usage(simulationdate: datetime, consumers: List[Consumer]):
     powerUsage = [0.0]*24*60
     for c in consumers:
@@ -58,6 +63,7 @@ def total_power_usage(simulationdate: datetime, consumers: List[Consumer]):
         powerUsage = np.add(powerUsage,[0]*(power_start_index)+c.power.power+[0]*(24*60-power_start_index-len(c.power.power)))
     return powerUsage
 
+# return the power from overcharging of all consumers
 def overcharge_power(simulationdate: datetime, consumers: List[Consumer]):
     overchargePower = [0.0]*24*60
     for c in consumers:
@@ -66,6 +72,7 @@ def overcharge_power(simulationdate: datetime, consumers: List[Consumer]):
             overchargePower = np.add(overchargePower,[0]*(power_start_index)+c.overpower.power+[0]*(24*60-power_start_index-len(c.overpower.power)))
     return overchargePower
 
+# plot power curves and scheduling graph
 def visualize_results(consumers: List[Consumer], solarProduction: Production, forecast: Forecast, simulation_parameters: SimulationParameters, powerUsage: List[float], overchargePower: List[float]):
     print("# Visualizing results...")
     simulationdate = simulation_parameters.simulationdate
@@ -105,9 +112,11 @@ def visualize_results(consumers: List[Consumer], solarProduction: Production, fo
     plt.savefig('./results/output.png')
     plt.show()
 
+# create a new simulation 
 def create(simulation_parameters: SimulationParameters):
     return [], []
 
+# add a vehicle to the simulation
 def add(simulation_parameters: SimulationParameters, vehicles: List[Vehicle], vehicle: str):
     if(vehicle is None):
         print("Error: No vehicle specified.")
@@ -116,6 +125,7 @@ def add(simulation_parameters: SimulationParameters, vehicles: List[Vehicle], ve
     vehicles.append(vehicle)
     return vehicles
 
+# schedule vehicles 
 def schedule(simulation_parameters: SimulationParameters, vehicles: List[Vehicle], consumers: List[Consumer]):
     simulationdate = simulation_parameters.simulationdate
 
@@ -158,7 +168,7 @@ def schedule(simulation_parameters: SimulationParameters, vehicles: List[Vehicle
     overchargePower = [0.0]*24*60
 
 
-    t = vehicles[-1].time_arrive
+    t = vehicles[-1].time_arrive # the scheduling time will be the arrive time of the last vehicle
     consumer_ids = [c.id_user for c in consumers]
     schedule_vehicles = [v for v in vehicles if v.id_user not in consumer_ids]
     
@@ -191,6 +201,7 @@ def schedule(simulation_parameters: SimulationParameters, vehicles: List[Vehicle
 
     return len(schedule_vehicles), allvehicles, consumers
 
+# visualize the state of the simulation
 def visualize(simulation_parameters: SimulationParameters, vehicles: List[Vehicle], consumers: List[Consumer]):
     simulationdate = simulation_parameters.simulationdate
 
@@ -227,6 +238,7 @@ def visualize(simulation_parameters: SimulationParameters, vehicles: List[Vehicl
     if(not simulation_parameters.hideresults):
         visualize_results(consumers,solarProduction,forecast,simulation_parameters,powerUsage,overchargePower)
 
+# overcharge egligible vehicles
 def overcharge(simulation_parameters: SimulationParameters, vehicles: List[Vehicle], consumers: List[Consumer]):
     simulationdate = simulation_parameters.simulationdate
 
@@ -241,6 +253,7 @@ def overcharge(simulation_parameters: SimulationParameters, vehicles: List[Vehic
     solarProduction = Production(forecast, simulationdate, smooth=simulation_parameters.smoothForecast) 
 
     powerUsage = total_power_usage(simulation_parameters.simulationdate, consumers)
+    
     ##### overcharging logic #####
     number_scheduled=0
     if(simulation_parameters.scheduling.overcharge):

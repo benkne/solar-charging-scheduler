@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 
+# define variable parameters for the scheduling algorithm
 class SchedulingParameters:
     def __init__(self,
                  flatten = False,
@@ -28,6 +29,7 @@ class SchedulingParameters:
             reducemax=data.get("reducemax", True)
         )
 
+# define variable parameters for the simulation
 class SimulationParameters:
     def __init__(self,
                  storepath = 'test/simulation.json',
@@ -56,6 +58,7 @@ class SimulationParameters:
 
         self.update_forecastapi()
 
+    # updates the forecast api url, needs to be called after the url has been changed
     def update_forecastapi(self):
         begindate = self.simulationdate - timedelta(days=1)
         enddate = self.simulationdate + timedelta(days=1)

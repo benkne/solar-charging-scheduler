@@ -7,11 +7,8 @@ from scheduling_framework.consumer_model import TimeInterval, PowerCurve, Consum
 from scheduling_framework.renewable_production import Production
 from scheduling_framework.parameters import SchedulingParameters
 
-def vehiclepower(v: Vehicle, startTime: datetime, t: datetime) -> int: # returns the power from vehicle v during time t when the charging starts at time startTime
-    if startTime <= t < startTime + timedelta(minutes=v.charge_duration):
-        return v.charge_max*1000
-    return 0
     
+# no strategy scheduling starts the charging process on arrival
 def no_strategy(scheduling_parameters: SchedulingParameters, vehicles: List[Vehicle], timestamp: datetime, production: List[float]) -> Tuple[List[Consumer], List[float]]:
     consumers = []
 
@@ -25,6 +22,7 @@ def no_strategy(scheduling_parameters: SchedulingParameters, vehicles: List[Vehi
 
     return consumers
 
+# the dynamic scheduling algorithm applies multiple strategies in optimizing the charging process
 def dynamic_scheduling(scheduling_parameters: SchedulingParameters, vehicles: List[Vehicle], timestamp: datetime, production: List[float]) -> Tuple[List[Consumer], List[float]]:
     vehicles = Vehicle.sort_vehicles_by_energy(vehicles)
     powerUsage = [0.0]*24*60
@@ -34,6 +32,8 @@ def dynamic_scheduling(scheduling_parameters: SchedulingParameters, vehicles: Li
 
     t = simulationdate
     end_time = t + timedelta(days=1)
+
+    # (re)schedule all vehicles
     for v in vehicles:
         maxstationpower = v.charge_max
         minduration = v.charge_duration
@@ -54,8 +54,8 @@ def dynamic_scheduling(scheduling_parameters: SchedulingParameters, vehicles: Li
             v.charge_duration= int(v.energy_required/v.charge_max*60)
             minduration = v.charge_duration
 
-        if(scheduling_parameters.reducemax):
         # reduce max power if possible
+        if(scheduling_parameters.reducemax):
             if(maxstationpower>20 and minduration<30 and parkduration>4*minduration):
                 print(f"INFO: vehicle with ID {v.id_user} can be charged with 1/4 max vehicle power. Parking: {parkduration} minutes. Required {minduration} minutes.")
                 maxstationpower = maxstationpower/4
@@ -65,8 +65,8 @@ def dynamic_scheduling(scheduling_parameters: SchedulingParameters, vehicles: Li
                 maxstationpower = maxstationpower/2
                 minduration = minduration*2
 
-        if(scheduling_parameters.flatten):
         # reduce power at the end if charging takes longer than 2 hours
+        if(scheduling_parameters.flatten):
             if(minduration>=120):
                 stationpower = [maxstationpower*1000]*(int(minduration*0.85)) # charge 70% of energy with max energy
                 slopeduration = int(0.15*v.energy_required/maxstationpower*4/3*60)

@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import List, Optional
 
+# the Vehicle class defines the BEV parameters
 class Vehicle:
     def __init__(self, 
                  id_user: str, 
@@ -32,6 +33,7 @@ class Vehicle:
                 f"Energy required: {self.energy_required} kWh\n"
                 f"Charging duration: {int(self.charge_duration)} min\n")
 
+    # print all list of vehicles to command line
     def display_vehicles(vehicles: List["Vehicle"]) -> None:
         if vehicles:
             for vehicle in vehicles:
@@ -49,6 +51,7 @@ class Vehicle:
     def sort_vehicles_by_energy(vehicles: List["Vehicle"]) -> List["Vehicle"]:
         return sorted(vehicles, reverse=True, key=lambda vehicle: vehicle.energy_required)
 
+    # creates vehicles from dictionary
     def create_vehicles(data: Optional[List[dict]], simulationdate: datetime) -> List["Vehicle"]:
         vehicles: List[Vehicle] = []
         if data:
@@ -90,6 +93,7 @@ class Vehicle:
                 vehicles.append(vehicle)
         return vehicles
     
+    # returns a list of vehicles arriving at the given timestamp 
     def vehicles_arriving(vehicles: List["Vehicle"],time: datetime) -> List["Vehicle"]:
         return [v for v in vehicles if v.time_arrive==time]
     
@@ -129,7 +133,7 @@ class Vehicle:
     def vehicles_from_dict(data: List[dict]) -> List["Vehicle"]:
         return [Vehicle.from_dict(vehicle_data) for vehicle_data in data]
     
-
+# return a single vehicle to add it to the list of vehicles
 def add_vehicle(simulationdate: datetime, vehicles: List[Vehicle], vehicle: str):
     if(vehicle is None):
         print("Error: Vehicle not set!")

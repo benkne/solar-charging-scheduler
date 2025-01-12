@@ -5,14 +5,17 @@ from typing import List
 
 from scheduling_framework.vehicle import Vehicle
 
+# Define intervals with start and end time using TimeInterval
 class TimeInterval:
     def __init__(self, time_start: datetime, time_end: datetime) -> None:
         self.time_start: datetime = time_start
         self.time_end: datetime = time_end
 
+    # returns the length of the interval
     def intervalLength(self) -> int:
         return int((self.time_end-self.time_start).total_seconds() / 60.0)
     
+    # check if timestamp is within interval limits
     def timeInInterval(self, timestep: datetime) -> bool:
         if(timestep>=self.time_start and timestep<=self.time_end):
             return True
@@ -39,19 +42,22 @@ class TimeInterval:
         time_end = datetime.fromtimestamp(data["time_end"])
         return TimeInterval(time_start, time_end)
     
+# PowerCurve defines a (chaning) power curve within certain interval limits
 class PowerCurve:
     def __init__(self, power: list[float], interval: TimeInterval) -> None:
         self.power: list[float] = power
         self.interval: TimeInterval = interval
     
-    def getPower(self, time: datetime) -> float:
-        if(time<self.interval.time_start or time>self.interval.time_end):
+    # returns the power during the specified timestamp
+    def getPower(self, timestamp: datetime) -> float:
+        if(timestamp<self.interval.time_start or timestamp>self.interval.time_end):
             return 0
-        minutes_diff = int((time - self.interval.time_start).total_seconds() / 60.0)
+        minutes_diff = int((timestamp - self.interval.time_start).total_seconds() / 60.0)
         if minutes_diff<0 or minutes_diff>=self.interval.intervalLength():
             return 0
         return self.power[minutes_diff]
     
+    # returns the total energy in Watts
     def getEnergy(self) -> float:
         if(self.power is None):
             return 0
@@ -95,18 +101,10 @@ class Consumer:
                 consumer.overpower.interval.time_end.timestamp() if consumer.overpower.interval is not None else consumer.power.interval.time_end.timestamp()
             )
         )
-
-    def vehicles_to_consumers(vehicles: List[Vehicle]) -> List["Consumer"]:
-        consumers: list["Consumer"] = []
-        for vehicle in vehicles:
-            interval: TimeInterval = TimeInterval(vehicle.time_arrive,vehicle.time_arrive+timedelta(minutes=vehicle.charge_duration))
-            powercurve: PowerCurve = PowerCurve([vehicle.charge_max*1000]*vehicle.charge_duration,interval)
-            consumer: Consumer = Consumer(vehicle.id_user,powercurve)
-            consumers.append(consumer)
-        return consumers
     
-    def unstarted_consumers(consumers: List["Consumer"], time: datetime) -> List[str]:
-        consumer_ids = [c.id_user for c in consumers if c.power.interval.time_start>time]
+    # returns a list of IDs of unstarted consumers at given timestamp
+    def unstarted_consumers(consumers: List["Consumer"], timestamp: datetime) -> List[str]:
+        consumer_ids = [c.id_user for c in consumers if c.power.interval.time_start>timestamp]
         return consumer_ids
     
     def printAllStats(vehicles: List[Vehicle], consumers: List["Consumer"]) -> None:
@@ -162,38 +160,45 @@ class Consumer:
     def consumers_from_dict(data: List[dict]) -> List["Consumer"]:
         return [Consumer.from_dict(consumer_data) for consumer_data in data]
 
+# define segments vor scheduling visualization plot
 class Segment:
     def __init__(self, id_user: str, interval: TimeInterval, power: float, basePower: float):
         self.id_user = id_user
         self.interval = interval
         self.power = power
-        self.basePower = basePower
+        self.basePower = basePower # base offset
 
+    # returns the power of the segment during the given timestamp
     def powerOfTimestep(self, timestep: datetime) -> float:
         if(self.interval.timeInInterval(timestep)):
             return self.power
         return 0
 
+# generate plot of consumers for simple scheduling visualization
 class ConsumerPlot:
     consumerSegments: List[Segment] = []
 
     def __init__(self, consumers: List[Consumer]) -> None:
-        for consumer in consumers:
+        for consumer in consumers: # generate segments for all consumers
             self.createSegments(consumer, consumer.power,consumer.power.interval.time_start)
             if(consumer.overpower.interval is not None):
                 self.createSegments(consumer, consumer.overpower,consumer.overpower.interval.time_start)
                 
+    # return the power of all segments at given timestamp
     def totalTimestepPower(self, timestep: datetime) -> float:
         totalPower = 0
         for segment in self.consumerSegments:
             totalPower = totalPower+segment.powerOfTimestep(timestep)
         return totalPower
     
+    # create one or more segments from consumer
     def createSegments(self,consumer: Consumer, powerCurve: PowerCurve, startTime) -> None:
         basePower = self.totalTimestepPower(startTime)
         time = startTime
         while time <= powerCurve.interval.time_end:
             currentPower = self.totalTimestepPower(time)
+
+            # create new segment if the base power changes or the power curve changes
             if currentPower != basePower or powerCurve.getPower(time) != powerCurve.getPower(time+timedelta(minutes=1)):
                 self.consumerSegments.append(Segment(
                     consumer.id_user,
@@ -204,6 +209,7 @@ class ConsumerPlot:
                 basePower = currentPower
                 startTime = time
 
+            # append last segment if end of time has been reached
             if time == powerCurve.interval.time_end:
                 self.consumerSegments.append(Segment(
                     consumer.id_user,
@@ -214,11 +220,15 @@ class ConsumerPlot:
 
             time += timedelta(minutes=1)
             
+    # visualize the consumer plot
     def visualize(self,ax) -> None:
+        
+        # returns a random color with the given string as seed for the random generator
         def color(string: str):
             random.seed(string)
             return (random.uniform(0, 1), random.uniform(0, 1), random.uniform(0, 1))
 
+        # for eacht segment, add a rectangle to the visualization
         for s in self.consumerSegments:
             time_start = s.interval.time_start
             power_start = s.basePower

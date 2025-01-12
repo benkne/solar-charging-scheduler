@@ -3,7 +3,8 @@ from datetime import datetime
 
 from scheduling_framework.forecast_power import Datapoint,Forecast
 
-def api_request(url) -> Forecast:
+# returns the PV production forecast, fetched from given API url
+def api_request(url: str) -> Forecast:
 
     try:
         response = requests.get(url, verify=True)
