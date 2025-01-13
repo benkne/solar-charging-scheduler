@@ -72,7 +72,7 @@ def dynamic_scheduling(scheduling_parameters: SchedulingParameters, vehicles: Li
                 slopeduration = int(0.15*v.energy_required/maxstationpower*4/3*60)
                 stationpower.extend([(maxstationpower-maxstationpower/2*t/slopeduration)*1000 for t in range(0,slopeduration)])
                 duration = int(slopeduration+0.85*minduration)
-                # check if the charging duration is still shorter then the parking time
+                # check if the charging duration is still shorter than the parking time
                 if(duration>parkduration):
                     stationpower = [maxstationpower*1000]*minduration
                 else:
@@ -91,6 +91,8 @@ def dynamic_scheduling(scheduling_parameters: SchedulingParameters, vehicles: Li
         t = timestamp
         if(t==end_time):
             bestStartTime=t
+
+        # find the optimal starting time of the charging process
         while t < end_time:
             gridEnergyUsed = 0
             chargeTime = t
@@ -103,8 +105,9 @@ def dynamic_scheduling(scheduling_parameters: SchedulingParameters, vehicles: Li
                 
                 chargeTime += timedelta(minutes=1)
             
+            # allow 1 kWh energy from grid per vehicle
             if(scheduling_parameters.allowgrid):
-                if gridEnergyUsed <= 1000:    # allow 1 kWh energy from grid per vehicle
+                if gridEnergyUsed <= 1000:    
                     gridEnergyUsed=0
 
             if gridEnergyUsed < leastGridEnergy: 
@@ -128,6 +131,7 @@ def dynamic_scheduling(scheduling_parameters: SchedulingParameters, vehicles: Li
 
     return consumers
 
+# overcharge consumers if excess renewable power is available
 def overcharge_scheduling(consumers: List[Consumer], vehicles: List[Vehicle], solarProduction: Production, powerUsage: List[float], timestamp: datetime):
     simulationdate = datetime(timestamp.year,timestamp.month,timestamp.day)
     
@@ -163,7 +167,6 @@ def overcharge_scheduling(consumers: List[Consumer], vehicles: List[Vehicle], so
                 lastRegularPower = c.overpower.power[-1]
 
             overcharge_start_index = regular_end_index
-            
             overcharge_end_index = 0
 
             vehicle_leave_index = int((v.time_leave.timestamp()-simulationdate.timestamp())/60)
