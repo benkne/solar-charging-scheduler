@@ -76,40 +76,52 @@ def overcharge_power(simulationdate: datetime, consumers: List[Consumer]):
 def visualize_results(consumers: List[Consumer], solarProduction: Production, forecast: Forecast, simulation_parameters: SimulationParameters, powerUsage: List[float], overchargePower: List[float]):
     print("# Visualizing results...")
     simulationdate = simulation_parameters.simulationdate
-    plt.figure(figsize=(10, 6))
+    #plt.figure(figsize=(10, 6))
+    fig, axs = plt.subplots(2, 1, figsize=(10, 8), gridspec_kw={'height_ratios': [3, 2]})
+    ax1 = axs[0]
+    ax2 = axs[1]
 
-    solarProduction.visualize(plt)
+    ax1.set_title('Solar forecast and BEV consumption - {}kWp'.format(simulation_parameters.peakSolarPower / 1000), fontsize=16)
+    ax1.set_xlabel('Time (CEST)', fontsize=12)
+    ax1.set_ylabel('Power (W)', fontsize=12)
+    ax1.grid(True)
+    ax1.tick_params(axis='x', rotation=45)
+
+    ax2.set_xlabel('Time (CEST)', fontsize=12)
+    ax2.set_ylabel('Power (W)', fontsize=12)
+    ax2.grid(True)
+    ax2.tick_params(axis='x', rotation=45)
+
+    solarProduction.visualize(ax1)
+    solarProduction.visualize(ax2)
     # forecast.visualizeGauss(plt,simulationdate)
-    forecast.visualizeSin2(plt,simulationdate)
+    forecast.visualizeSin2(ax1,simulationdate)
 
     time_vector: datetime = generate_time_vector(simulationdate)
     
-    plt.step(time_vector, powerUsage, where='post', marker='', linestyle='-', color='black', label="total consumed power")
-    plt.step(time_vector, overchargePower, where='post', marker='', linestyle='-', color='lime', label="overcharge power")
-    plt.step(time_vector,[max(solarProduction.production[i]-powerUsage[i],0) for i in range(len(powerUsage))], where='post', label="remaining solar power")
-    plt.step(time_vector,[max(-(solarProduction.production[i]-powerUsage[i]),0) for i in range(len(powerUsage))], color='r', where='post', label="power drawn from grid")
-
-    plt.title('Solar forecast and BEV consumption - {}kWp'.format(simulation_parameters.peakSolarPower/1000), fontsize=16)
-    plt.xlabel('Time (CEST)', fontsize=12)
-    plt.ylabel('Power (W)', fontsize=12)
-    plt.grid(True)
-    plt.xticks(rotation=45)
+    ax1.step(time_vector, powerUsage, where='post', marker='', linestyle='-', color='black', label="total consumed power")
+    ax2.step(time_vector, powerUsage, where='post', marker='', linestyle='-', color='black', label="total consumed power")
+    ax2.step(time_vector, overchargePower, where='post', marker='', linestyle='-.', color='lime', label="overcharge power")
+    ax2.step(time_vector,[max(solarProduction.production[i]-powerUsage[i],0) for i in range(len(powerUsage))], where='post', linestyle=':', label="remaining solar power")
+    ax2.step(time_vector,[max(-(solarProduction.production[i]-powerUsage[i]),0) for i in range(len(powerUsage))], color='r', where='post', label="power drawn from grid")
     
     if(len(consumers)>0):
-        ax = plt.gca()
         consumerPlot: ConsumerPlot = ConsumerPlot(consumers)
-        consumerPlot.visualize(ax)
+        consumerPlot.visualize(ax1)
 
         consumers_sorted_starting: List[Consumer] = Consumer.sort_consumers_by_start_time(consumers)
         consumers_sorted_ending: List[Consumer] = Consumer.sort_consumers_by_end_time(consumers)
 
         last_consumer = consumers_sorted_ending[-1]
         endtime = last_consumer.power.interval.time_end if last_consumer.overpower.interval is None else last_consumer.overpower.interval.time_end
-        plt.xlim(consumers_sorted_starting[0].power.interval.time_start-timedelta(minutes=30),endtime+timedelta(minutes=30))
-        plt.ylim((0,max(forecast.getDailyPeak(simulationdate),max(powerUsage))*1.15))
-    plt.legend(loc="upper left")
+        ax1.set_xlim(consumers_sorted_starting[0].power.interval.time_start-timedelta(minutes=30),endtime+timedelta(minutes=30))
+        ax1.set_ylim((0,max(forecast.getDailyPeak(simulationdate),max(powerUsage))*1.15))
+        ax2.set_xlim(consumers_sorted_starting[0].power.interval.time_start-timedelta(minutes=30),endtime+timedelta(minutes=30))
+        ax2.set_ylim((0,max(forecast.getDailyPeak(simulationdate),max(powerUsage))*1.15))
+    ax1.legend(loc="upper left")
+    ax2.legend(loc="upper left")
     plt.tight_layout() 
-    plt.savefig('./results/output.png')
+    plt.savefig('./results/output.svg')
     plt.show()
 
 # create a new simulation 
